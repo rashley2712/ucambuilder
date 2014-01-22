@@ -148,6 +148,7 @@ if (int(config.WRITE_JSON)==1):
 	json.dump(allObjects, outputfile)
 	outputfile.close()
 	
+"""
 print "Writing a log file... just temp file..."
 outfile = open("temp.log", "w")
 	
@@ -169,8 +170,9 @@ for m in MJDs:
 		outString+= ", " + str(countsRed) + ", " + str(countsGreen) + ", " + str(countsBlue)
 	outString+= "\n"
 	outfile.write(outString)
-		
+	
 outfile.close()
+"""
 
 if (int(config.WRITE_FITS)==1):
 	
