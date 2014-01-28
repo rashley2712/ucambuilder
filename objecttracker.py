@@ -221,8 +221,9 @@ debug.write("Writing PNG file: " + outputFilename + ".png")
 img.save(outputFilename + "png", "PNG")
 
 
-if (config.WRITE_FITS==1): 
+if (int(config.WRITE_FITS)==1): 
 	FITSFilename = outputFilename + "fits"
+	debug.write("Writing FITS file: " + FITSFilename, level=1)
 	utils.saveFITSImage(fullFrame, FITSFilename)
 
 
