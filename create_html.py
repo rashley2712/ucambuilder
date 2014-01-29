@@ -53,5 +53,4 @@ outFile = open(outputFilename, "w")
 outFile.write(template.render(templateVars))
 outFile.close()
 
-print "This is a test of github. Please ignore"
 
