@@ -161,7 +161,7 @@ for i in range(requestedNumFrames):
 			
 	for j in range(frameInfo.numWindows): 
 	
-		frameImage = frameWindows[j]
+		frameImage = numpy.copy(frameWindows[j])
 		utils.createFITS(frameCounter, frameImage)
 		utils.runSex(frameCounter)
 		
@@ -193,8 +193,9 @@ for j in range(frameInfo.numWindows):
 	normalisedImage = utils.percentiles(averageFrame, 25, 99)
 	normalisedImages.append(normalisedImage)
 
+
 	
-# Construct full frame from Windows
+# Construct full frame from Windows (normalised)
 fullFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 for j in range(frameInfo.numWindows):
 	xll = frameInfo.getWindow(j).xll 
@@ -206,6 +207,21 @@ for j in range(frameInfo.numWindows):
 	
 fullFrame = numpy.fliplr(fullFrame)
 	
+# Construct full frame from Windows (un-normalised)
+fullUNFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+print frameInfo
+for j in range(frameInfo.numWindows):
+	xll = frameInfo.getWindow(j).xll 
+	yll = frameInfo.getWindow(j).yll 
+	xsize = frameInfo.getWindow(j).xsize 
+	ysize = frameInfo.getWindow(j).ysize 
+	rotatedImage = numpy.flipud(averageFrames[j])
+	
+	fullUNFrame[xll:xll+xsize, yll:yll+ysize] = fullFrame[xll:xll+xsize, yll:yll+ysize] + rotatedImage
+	
+fullUNFrame = numpy.fliplr(fullUNFrame)
+
+
 debug.write("Objects detected:")
 for m in masterObjectList:
 	debug.write(m.toString())
@@ -224,7 +240,7 @@ img.save(outputFilename + "png", "PNG")
 
 if (int(config.WRITE_FITS)==1): 
 	FITSFilename = outputFilename + "fits"
-	imageData = numpy.rot90(fullFrame)
+	imageData = numpy.rot90(fullUNFrame)
 	debug.write("Writing FITS file: " + FITSFilename, level=1)
 	
 	prihdr = astropy.io.fits.Header()
