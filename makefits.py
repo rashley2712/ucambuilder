@@ -36,7 +36,7 @@ def getNextFrame():
 		for nwin,win in enumerate(frameR._data):
 			frameInfo.addWindow(win.llx, win.lly, win.nx, win.ny)
 			debug.write("Window: %d  llx: %d, lly: %d, nx: %d, ny: %d"%(nwin, win.llx, win.lly, win.nx, win.ny), level = 1)
-		debug.write(frameInfo, level = 2)
+		debug.write(frameInfo, level = 1)
 
    	frameMJD = frameR.time.mjd
 	goodTime = frameR.time.good 
@@ -45,13 +45,13 @@ def getNextFrame():
 	frameWindows = []
 	if (channel == 'r'):
 		for i in frameR._data:
-			frameWindows.append(i.data)
+			frameWindows.append(i.data.T)
 	if (channel == 'g'):
 		for i in frameG._data:
-			frameWindows.append(i.data)
+			frameWindows.append(i.data.T)
 	if (channel == 'b'):
 		for i in frameB._data:
-			frameWindows.append(i.data)
+			frameWindows.append(i.data.T)
 		
 	return frameWindows
 	
@@ -95,6 +95,7 @@ startFrame = 1
 requestedNumFrames = 10
 keepTmpFiles = False
 frameInfo = classes.FrameObject()
+mplPreview = False
 
 for i in sys.argv[2:]:
 	if i[:2]=="-n": 
@@ -115,6 +116,9 @@ for i in sys.argv[2:]:
 	if i[:2]=="-d":
 		debugLevel = i[2:]
 		debug.setLevel(debugLevel)
+	if i[:2]=="-p":
+		mplPreview=True
+		
 
 outputFilename = utils.addPaths(config.SITE_PATH,runName)  + "deepimage" + channel + "."
 debug.toggleTimeLog()
@@ -132,6 +136,7 @@ summedFrames = []
 frameCounter = 0
 firstFrame = True
 goodTime = False
+
 for i in range(requestedNumFrames):
 	actualFrame = frameCounter + startFrame 
 	if (actualFrame<numFrames):
@@ -145,15 +150,16 @@ for i in range(requestedNumFrames):
 		print "We couldn't read the next frame... exiting the loop"
 		break
 		
-	if goodTime == False:
-		print "Timing error.... skipping the frame"
-		continue
+	#if goodTime == False:
+	#	print "Timing error.... skipping the frame"
+	#	continue
 
 	if (channel == 'b') & (frameCounter % rdat.nblue != 0):      # This is an empty blue frame so skip it.
 		continue   
 	
 	if (firstFrame):	
 		for j in range(frameInfo.numWindows):
+
 			width = frameInfo.getWindow(j).xsize
 			height = frameInfo.getWindow(j).ysize
 			summedFrame = numpy.zeros((width, height))
@@ -165,17 +171,16 @@ for i in range(requestedNumFrames):
 		frameImage = numpy.copy(frameWindows[j])
 		utils.createFITS(frameCounter, frameImage)
 		utils.runSex(frameCounter)
-		
-		frameImage = numpy.rot90(frameImage)
 							
 		summedFrame = summedFrames[j]
 		summedFrame = numpy.add(summedFrame, frameImage)
 		summedFrames[j] = summedFrame
 
-		imgplot = plt.imshow(frameImage, cmap='Paired', interpolation='nearest', \
-                           vmin=0, vmax=60000, origin='lower', extent=limits)
-		plt.draw()
-		print "WIndow info:", frameInfo.getWindow(j)
+		if mplPreview==True:
+			imgplot = plt.imshow(utils.percentiles(frameImage, 20, 98), cmap='gray', interpolation='nearest')
+			plt.draw()
+		
+		print "Window info:", frameInfo.getWindow(j)
 			
 		if (int(config.KEEP_TMP_FILES)==0):utils.removeFITS(frameCounter);
 		
@@ -199,7 +204,6 @@ for j in range(frameInfo.numWindows):
 	normalisedImage = utils.percentiles(averageFrame, 25, 99)
 	normalisedImages.append(normalisedImage)
 
-
 	
 # Construct full frame from Windows (normalised)
 fullFrame = numpy.zeros((frameInfo.nymax, frameInfo.nxmax))
@@ -208,9 +212,7 @@ for j in range(frameInfo.numWindows):
 	yll = frameInfo.getWindow(j).yll 
 	xsize = frameInfo.getWindow(j).xsize 
 	ysize = frameInfo.getWindow(j).ysize 
-	#rotatedImage = numpy.flipud(normalisedImages[j])
-	rotatedImage = normalisedImages[j]
-	fullFrame[xll:xll+xsize, yll:yll+ysize] = fullFrame[xll:xll+xsize, yll:yll+ysize] + rotatedImage
+	fullFrame[xll:xll+xsize, yll:yll+ysize] = fullFrame[xll:xll+xsize, yll:yll+ysize] + normalisedImages[j]
 	
 fullFrame = numpy.fliplr(fullFrame)
 	
@@ -222,9 +224,7 @@ for j in range(frameInfo.numWindows):
 	yll = frameInfo.getWindow(j).yll 
 	xsize = frameInfo.getWindow(j).xsize 
 	ysize = frameInfo.getWindow(j).ysize 
-	#rotatedImage = numpy.flipud(averageFrames[j])
-	rotatedImage = averageFrames[j]
-	fullUNFrame[xll:xll+xsize, yll:yll+ysize] = fullFrame[xll:xll+xsize, yll:yll+ysize] + rotatedImage
+	fullUNFrame[xll:xll+xsize, yll:yll+ysize] = fullUNFrame[xll:xll+xsize, yll:yll+ysize] + averageFrames[j]
 	
 fullUNFrame = numpy.fliplr(fullUNFrame)
 
