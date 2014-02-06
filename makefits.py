@@ -8,6 +8,8 @@ from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import rashley_utils as utils
 import classes
 import Image,ImageDraw
+import matplotlib.pyplot as plt
+
 
 def getNextFrame():
 	global rdat, frameCounter, actualFrame, frameMJD, nxmax, nymax, numWindows, frameInfo, goodTime
@@ -27,19 +29,17 @@ def getNextFrame():
 		nxmax = frameR.nxmax
 		nymax = frameR.nymax
 		numWindows = len(frameR)
-		debug.write("Frame dimensions: (%d, %d), Num windows %d"%(nxmax, nymax, numWindows), level = 2)
+		debug.write("Frame dimensions: (%d, %d), Num windows %d"%(nxmax, nymax, numWindows), level = 1)
 		frameInfo.channel = channel
 		frameInfo.nxmax = nxmax
 		frameInfo.nymax = nymax
 		for nwin,win in enumerate(frameR._data):
 			frameInfo.addWindow(win.llx, win.lly, win.nx, win.ny)
+			debug.write("Window: %d  llx: %d, lly: %d, nx: %d, ny: %d"%(nwin, win.llx, win.lly, win.nx, win.ny), level = 1)
 		debug.write(frameInfo, level = 2)
 
    	frameMJD = frameR.time.mjd
 	goodTime = frameR.time.good 
-   	#timeTest = rdat.time()
-	#timeTest = rtime()
-	#debug.write(timeTest)
 	debug.write("Frame: " + str(frameCounter) + "[" + str(actualFrame) + "]" + "  MJD: " + str(frameMJD), level = 1)
 	
 	frameWindows = []
@@ -90,6 +90,7 @@ runFilename = utils.addPaths(config.ULTRACAMRAW, runName)
 
 channel = 'r'
 
+plt.ion()
 startFrame = 1
 requestedNumFrames = 10
 keepTmpFiles = False
@@ -170,6 +171,11 @@ for i in range(requestedNumFrames):
 		summedFrame = summedFrames[j]
 		summedFrame = numpy.add(summedFrame, frameImage)
 		summedFrames[j] = summedFrame
+
+		imgplot = plt.imshow(frameImage, cmap='Paired', interpolation='nearest', \
+                           vmin=0, vmax=60000, origin='lower', extent=limits)
+		plt.draw()
+		print "WIndow info:", frameInfo.getWindow(j)
 			
 		if (int(config.KEEP_TMP_FILES)==0):utils.removeFITS(frameCounter);
 		
@@ -196,27 +202,28 @@ for j in range(frameInfo.numWindows):
 
 	
 # Construct full frame from Windows (normalised)
-fullFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+fullFrame = numpy.zeros((frameInfo.nymax, frameInfo.nxmax))
 for j in range(frameInfo.numWindows):
 	xll = frameInfo.getWindow(j).xll 
 	yll = frameInfo.getWindow(j).yll 
 	xsize = frameInfo.getWindow(j).xsize 
 	ysize = frameInfo.getWindow(j).ysize 
-	rotatedImage = numpy.flipud(normalisedImages[j])
+	#rotatedImage = numpy.flipud(normalisedImages[j])
+	rotatedImage = normalisedImages[j]
 	fullFrame[xll:xll+xsize, yll:yll+ysize] = fullFrame[xll:xll+xsize, yll:yll+ysize] + rotatedImage
 	
 fullFrame = numpy.fliplr(fullFrame)
 	
 # Construct full frame from Windows (un-normalised)
-fullUNFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+fullUNFrame = numpy.zeros((frameInfo.nymax, frameInfo.nxmax))
 print frameInfo
 for j in range(frameInfo.numWindows):
 	xll = frameInfo.getWindow(j).xll 
 	yll = frameInfo.getWindow(j).yll 
 	xsize = frameInfo.getWindow(j).xsize 
 	ysize = frameInfo.getWindow(j).ysize 
-	rotatedImage = numpy.flipud(averageFrames[j])
-	
+	#rotatedImage = numpy.flipud(averageFrames[j])
+	rotatedImage = averageFrames[j]
 	fullUNFrame[xll:xll+xsize, yll:yll+ysize] = fullFrame[xll:xll+xsize, yll:yll+ysize] + rotatedImage
 	
 fullUNFrame = numpy.fliplr(fullUNFrame)
