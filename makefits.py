@@ -261,8 +261,8 @@ if (int(config.WRITE_FITS)==1):
 	prihdr['CRPIX2'] = 512
 	prihdr['CRVAL1'] = 296.0083
 	prihdr['CRVAL2'] = 40.2963
-	prihdr['CDELT1'] = -9.7E-05
-	prihdr['CDELT2'] = 9.7E-05
+	prihdr['CDELT1'] = -8.3E-05
+	prihdr['CDELT2'] = 8.3E-05
 	
 	
 	hdu = astropy.io.fits.PrimaryHDU(imageData, header=prihdr)
