@@ -90,13 +90,14 @@ def buildObjectsFromJSON(filename):
 		
 	return objects
 	
-def createFITS(number, imageData):
+def createFITS(frameNumber, window, channel, imageData):
     """ Writes a FITS file for the images in a frame of the CCD
     """
-    filename = "/tmp/frame" + str(number) + ".fits"
+    filename = "/tmp/ucamwin" + str(frameNumber).zfill(5)+ "_" + str(window) + "_" + channel + ".fits"
     hdu = astropy.io.fits.PrimaryHDU(imageData)
     hdulist = astropy.io.fits.HDUList([hdu])
     hdulist.writeto(filename, clobber=True)
+    return filename
     
 def saveFITSImage(imageData, filename):
     """ Writes a FITS file for the images in a frame of the CCD
@@ -104,6 +105,12 @@ def saveFITSImage(imageData, filename):
     hdu = astropy.io.fits.PrimaryHDU(imageData)
     hdulist = astropy.io.fits.HDUList([hdu])
     hdulist.writeto(filename, clobber=True)
+
+def removeTMPFile(filename):
+    """ Removes a temporary file once sextractor has finished with it
+    """
+    os.remove(filename)
+
 
 def removeFITS(number):
     """ Removes a temporary FITS file once sextractor has finished with it
@@ -118,43 +125,37 @@ def removeCAT(number):
     os.remove(filename)
 
 
-def runSex(frameNumber):
+def runSex(tmpFilename):
     """ Runs a sextractor process for an image that has just been placed in a FITS file
     """
-    fitsFilename = "/tmp/frame" + str(frameNumber) + ".fits"
-    catFileParameter = " CATALOG_NAME /tmp/frame" + str(frameNumber) + ".cat"
-    subprocess.call(["sex", fitsFilename, "-" + catFileParameter])
+    catFilename = tmpFilename[:-5] + ".cat"
+    catFileParameter = " CATALOG_NAME " + str(catFilename)
+    subprocess.call(["sex", tmpFilename, "-" + catFileParameter])
+    return catFilename
     
-def readSexObjects(frameNumber):
+
+def readSexObjects(catFilename):
 	""" Reads a sextractor .cat file and returns a list of objects in that file
     """
-	filename = "/tmp/frame" + str(frameNumber) + ".cat"
-	sexfile = open( filename, "r" )
- 
+	sexCatalog = astropy.io.fits.open(catFilename)
+	headers = sexCatalog["LDAC_OBJECTS"].header
+	data = sexCatalog["LDAC_OBJECTS"].data
+	columns = sexCatalog["LDAC_OBJECTS"].columns
 	objects = []
-
-	for line in sexfile:
-		if(line[0]!="#"):                                    # If the line is a comment, ignore it
-		# sys.stdout.write(line)                          
-			object = {'id': 0, 'x':0, 'y':0, 'radius':0, 'counts':0, 'flags':0}
-			params = line.split()
-			id = int(params[0])
-			x = float(params[1])
-			y = float(params[2])
-			counts = float(params[3])
-			mag = float(params[4])
-			radius = float(params[5])
-			flags = int(params[6])
-			object['id'] = id
-			object['x'] = x
-			object['y'] = y
-			object['counts'] = counts
-			object['radius'] = radius
-			object['flags'] = flags
-			objects.append(object)
 	
-	sexfile.close()
-
+	for item in data:
+		object = {}
+		object['id']     = item[columns.names.index("NUMBER")]
+		object['x']      = item[columns.names.index("X_IMAGE")]
+		object['y']      = item[columns.names.index("Y_IMAGE")]
+		object['counts'] = item[columns.names.index("FLUX_AUTO")]
+		object['mag']    = item[columns.names.index("MAG_AUTO")]
+		object['radius'] = item[columns.names.index("FLUX_RADIUS")]
+		object['flags']  = item[columns.names.index("FLAGS")]
+		objects.append(object)
+	
+	sexCatalog.close()
+	
 	return objects
 	
 def filterOutCosmicRays(objects):

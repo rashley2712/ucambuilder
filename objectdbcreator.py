@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import ultracamutils
+import matplotlib.pyplot
 import argparse
+import numpy
 import classes
 import rashley_utils as utils
 from trm import ultracam
@@ -26,7 +28,6 @@ def getNextFrame():
 		nymax = frameR.nymax
 		numWindows = len(frameR)
 		debug.write("Frame dimensions: (%d, %d), Num windows %d"%(nxmax, nymax, numWindows), level = 3)
-		frameInfo = classes.FrameObject()
 		frameInfo.nxmax = nxmax
 		frameInfo.nymax = nymax
 		for nwin,win in enumerate(frameR._data):
@@ -37,6 +38,7 @@ def getNextFrame():
 	goodTime = frameR.time.good 
 
 	fullFrame = {}
+	fullFrame['MJD'] = frameMJD
 	frameWindows=[]
 	for i in frameR._data:
 		frameWindows.append(i.data.T)
@@ -48,14 +50,15 @@ def getNextFrame():
 	fullFrame["g"] = frameWindows
 
 	frameWindows=[]
-	for i in frameG._data:
+	for i in frameB._data:
 		frameWindows.append(i.data.T)
-	fullFrame["g"] = frameWindows
+	fullFrame["b"] = frameWindows
 
 	return fullFrame
 
 
 if __name__ == "__main__":
+	
 	
 	parser = argparse.ArgumentParser(description='Reads the Ultracam [dd-mm-yyyy/runxxx.dat] files and identifies and tracks the objects')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
@@ -74,6 +77,9 @@ if __name__ == "__main__":
 	runFilename = utils.addPaths(config.ULTRACAMRAW, arg.runname)
 
 	debug.write("Opening the Ultracam raw file at: " + runFilename, level = 3)
+	
+	if arg.preview: 
+		matplotlib.pyplot.ion()
 	
 	startFrame = arg.startframe
 	if startFrame<1:
@@ -94,9 +100,37 @@ if __name__ == "__main__":
 		if requestedNumFrames<(frameRange):
 			frameRange = requestedNumFrames
 	
+	frameInfo = classes.FrameObject()
+	
+	""" Run through all the frames in the .dat file.
+	"""
 	for frameIndex in range(1, frameRange + 1):
 		trueFrameNumber = startFrame + frameIndex - 1
-		debug.write("Processing frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + "]", level = 2)
 		wholeFrame = getNextFrame()
+		debug.write("Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + "] MJD:" + str(wholeFrame['MJD']), level = 2)
 		
+		redFrame = wholeFrame['r']
+		assembledRedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 		
+		for j in range(frameInfo.numWindows): 
+			windowImage = redFrame[j]
+			tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, 'r', windowImage)
+			catFilename = ultracamutils.runSex(tmpFilename)
+			objects = ultracamutils.readSexObjects(catFilename)
+			if config.KEEP_TMP_FILES!="1":
+				ultracamutils.removeTMPFile(tmpFilename)
+				ultracamutils.removeTMPFile(catFilename)
+
+			xll = frameInfo.getWindow(j).xll 
+			yll = frameInfo.getWindow(j).yll 
+			xsize = frameInfo.getWindow(j).xsize 
+			ysize = frameInfo.getWindow(j).ysize 
+			
+			normalisedWindow = ultracamutils.percentiles(windowImage, 20, 98)
+			assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + normalisedWindow
+
+		if arg.preview:
+			imgplot = matplotlib.pyplot.imshow(assembledRedFrame, cmap='gray', interpolation='nearest')
+			matplotlib.pyplot.draw()
+
+
