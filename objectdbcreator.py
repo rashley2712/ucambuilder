@@ -11,6 +11,9 @@ from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import sys
 
 def getNextFrame():
+	""" Reads the next frame from the CCD using trm routines. Returns all three channels in a dict object (an array of windows)
+	    If we are at the first frame, also creates a 'frameInfo' object with information about window dimensions
+	"""
 	try:
 		ccdFrame = rdat()
 	except UltracamError:
@@ -55,6 +58,13 @@ def getNextFrame():
 	fullFrame["b"] = frameWindows
 
 	return fullFrame
+
+	
+def updateCatalog(MJD, newObjects):
+	debug.write("Updating the catalog...")
+	for o in newObjects:
+		print o
+		
 
 
 if __name__ == "__main__":
@@ -101,7 +111,7 @@ if __name__ == "__main__":
 			frameRange = requestedNumFrames
 	
 	frameInfo = classes.FrameObject()
-	
+	masterObjectList = []
 	""" Run through all the frames in the .dat file.
 	"""
 	for frameIndex in range(1, frameRange + 1):
@@ -116,7 +126,10 @@ if __name__ == "__main__":
 			windowImage = redFrame[j]
 			tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, 'r', windowImage)
 			catFilename = ultracamutils.runSex(tmpFilename)
-			objects = ultracamutils.readSexObjects(catFilename)
+			newObjects = ultracamutils.readSexObjects(catFilename)
+			
+			updateCatalog(wholeFrame['MJD'], newObjects)
+
 			if config.KEEP_TMP_FILES!="1":
 				ultracamutils.removeTMPFile(tmpFilename)
 				ultracamutils.removeTMPFile(catFilename)
@@ -130,7 +143,8 @@ if __name__ == "__main__":
 			assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + normalisedWindow
 
 		if arg.preview:
-			imgplot = matplotlib.pyplot.imshow(assembledRedFrame, cmap='gray', interpolation='nearest')
+			# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
+			mplFrame = numpy.rot90(assembledRedFrame)
+			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='gray', interpolation='nearest')
 			matplotlib.pyplot.draw()
-
 
