@@ -139,12 +139,12 @@ if __name__ == "__main__":
 			xsize = frameInfo.getWindow(j).xsize 
 			ysize = frameInfo.getWindow(j).ysize 
 			
-			normalisedWindow = ultracamutils.percentiles(windowImage, 20, 98)
-			assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + normalisedWindow
+			assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
 
 		if arg.preview:
 			# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
 			mplFrame = numpy.rot90(assembledRedFrame)
 			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='gray', interpolation='nearest')
 			matplotlib.pyplot.draw()
-
+			matplotlib.pyplot.clf()
+	
