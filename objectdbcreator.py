@@ -36,6 +36,12 @@ def getNextFrame():
 		for nwin,win in enumerate(frameR._data):
 			frameInfo.addWindow(win.llx, win.lly, win.nx, win.ny)
 			debug.write("Window: %d  llx: %d, lly: %d, nx: %d, ny: %d"%(nwin, win.llx, win.lly, win.nx, win.ny), level = 3)
+		""" For the object tracking piece we are going to keep a temporary store of catalogues (of objects) for each window independently.
+		    We will create a global variable, dictionary called windowCat to do this.
+		"""
+		for i in range(frameInfo.numWindows):
+			window = frameInfo.getWindow(i)
+			 
 
    	frameMJD = frameR.time.mjd
 	goodTime = frameR.time.good 
@@ -60,10 +66,13 @@ def getNextFrame():
 	return fullFrame
 
 	
-def updateCatalog(MJD, newObjects):
+def updateCatalog(MJD, windowNumber, frameNumber, newObjects):
 	debug.write("Updating the catalog...")
-	for o in newObjects:
-		print o
+	debug.write("Frame number: %d, Window number: %d"%(frameNumber, windowNumber))
+	debug.write("Number of objects in this window: %d"%(len(newObjects)))
+	debug.write("Number of objects in the same window of the previous frame: %d"%(len(oldcat)))
+	#for o in newObjects:
+	#	print o
 		
 
 
@@ -128,7 +137,7 @@ if __name__ == "__main__":
 			catFilename = ultracamutils.runSex(tmpFilename)
 			newObjects = ultracamutils.readSexObjects(catFilename)
 			
-			updateCatalog(wholeFrame['MJD'], newObjects)
+			updateCatalog(wholeFrame['MJD'], j, frameIndex, newObjects)
 
 			if config.KEEP_TMP_FILES!="1":
 				ultracamutils.removeTMPFile(tmpFilename)
@@ -146,5 +155,5 @@ if __name__ == "__main__":
 			mplFrame = numpy.rot90(assembledRedFrame)
 			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='gray', interpolation='nearest')
 			matplotlib.pyplot.draw()
-			matplotlib.pyplot.clf()
+			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
 	
