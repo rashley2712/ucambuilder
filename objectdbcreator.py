@@ -9,11 +9,13 @@ import rashley_utils as utils
 from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import sys
+import ultracam_shift
 
 def getNextFrame():
 	""" Reads the next frame from the CCD using trm routines. Returns all three channels in a dict object (an array of windows)
 	    If we are at the first frame, also creates a 'frameInfo' object with information about window dimensions
 	"""
+	global catalogs
 	try:
 		ccdFrame = rdat()
 	except UltracamError:
@@ -37,12 +39,10 @@ def getNextFrame():
 			frameInfo.addWindow(win.llx, win.lly, win.nx, win.ny)
 			debug.write("Window: %d  llx: %d, lly: %d, nx: %d, ny: %d"%(nwin, win.llx, win.lly, win.nx, win.ny), level = 3)
 		""" For the object tracking piece we are going to keep a temporary store of catalogues (of objects) for each window independently.
-		    We will create a global variable, dictionary called windowCat to do this.
+		    We will use the class FrameCatalogObject for this.
 		"""
-		for i in range(frameInfo.numWindows):
-			window = frameInfo.getWindow(i)
-			 
-
+		catalogs = classes.FrameCatalogObject(numWindows)
+			
    	frameMJD = frameR.time.mjd
 	goodTime = frameR.time.good 
 
@@ -70,11 +70,35 @@ def updateCatalog(MJD, windowNumber, frameNumber, newObjects):
 	debug.write("Updating the catalog...")
 	debug.write("Frame number: %d, Window number: %d"%(frameNumber, windowNumber))
 	debug.write("Number of objects in this window: %d"%(len(newObjects)))
-	debug.write("Number of objects in the same window of the previous frame: %d"%(len(oldcat)))
-	#for o in newObjects:
-	#	print o
-		
+	oldCatalog = catalogs.getCatalog(windowNumber)
+	debug.write("Number of objects in the same window of the previous frame: %d"%(len(oldCatalog)))
+	
+	""" Reject any objects flagged by SEXtractor as bad objects
+	"""
+	newObjects = ultracamutils.rejectBadObjects(newObjects)
+	
+	if len(oldCatalog)==0:
+		#This is probably the first frame and there are currently no objects to compare to ... add them all to the catalog
+		cat = []
 
+		print "newObjects:",  newObjects
+		for o in newObjects:
+			cat.append( [ o['x'],  o['y'] ] )
+		catalogs.setCatalog(windowNumber, cat)
+		return
+		
+	# Create a new catalog
+	newCatalog = []
+	for o in newObjects:
+		newCatalog.append( [ o['x'], o['y'] ] )
+	print newCatalog
+	
+	psize  = 0.5
+	fwhm   = 4.
+	dmax   = 20.
+	mmax   = 3.
+
+	shift.vimage(oldCatalog, newCatalog, dmax, psize, fwhm)
 
 if __name__ == "__main__":
 	

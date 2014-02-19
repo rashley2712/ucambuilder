@@ -113,7 +113,6 @@ class FrameObject:
 	""" This class contains the definitions of the windows for a specific run
 	"""
 	def __init__(self):
-		self.channel = 'unknown'
 		self.numWindows = 0
 		self.windows = []
 		self.nxmax = 0
@@ -128,7 +127,7 @@ class FrameObject:
 		return self.windows[index]
 		
 	def __str__(self):
-		out = "Channel: " + str(self.channel) + " numWindows: " + str(self.numWindows) + " dimensions (" + str(self.nxmax) + ", " + str(self.nymax) + ")"
+		out = "NumWindows: " + str(self.numWindows) + " dimensions (" + str(self.nxmax) + ", " + str(self.nymax) + ")"
 		out += "\n"
 		for i in self.windows:
 			out+= str(i) + "\n"
@@ -157,6 +156,10 @@ class debugObject:
 			self.timeLog = False
 		else:
 			self.timeLog = True
+
+	def error(self, debugText):
+		self.debugText = "ERROR: " + debugText
+		print str(self)
 		
 	def write(self, debugText, level = 3):
 		self.debugText = debugText
@@ -211,6 +214,23 @@ class combined3ColourObject:
 		if (self.g!=None): outObject['green_id'] = self.g.id
 		if (self.b!=None): outObject['blue_id'] = self.b.id
 		return json.dumps(outObject)
+
+class FrameCatalogObject:
+	""" This is a class to keep track of the catalogs we are going to follow. We will keep a catalog for each window. 
+	    A catalog is an array of the positions (x, y) of all  the objects in the window.
+	"""	
+	def __init__(self, numWindows):
+		self.numWindows = numWindows
+		self.catalogs = []
+		for i in range(numWindows):
+			cat = []
+			self.catalogs.append(cat)
+		
+	def setCatalog(self, windowIndex, catalog):
+		self.catalogs[windowIndex] = catalog
+		
+	def getCatalog(self, windowIndex):
+		return self.catalogs[windowIndex]
 
 class ObservedObject:
 	""" This is a class to encapsulate a single observed object in a single channel (colour), usually a star
