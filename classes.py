@@ -238,8 +238,7 @@ class ObservedObject:
 	def __init__(self, id):
 		self.id = id                # ID for this object, unique to this run
 		self.CCDchannel = 0         # which channel am I on? r = 1, g = 2, b = 3, undefined = 0 
-		self.CCDportion = 0         # which half of the CCD am I on? left = 1, right = 2
-		self.windowID = 0           # which window am I on? ID from 0 to n 
+		self.windowIndex = 0           # which window am I on? ID from 0 to n 
 		self.distanceThreshold = 3.0
 		self.numExposures = 0       # The number of exposures in this run for this object
 		self.exposures = []         # An array containing numExposures exposure objects
@@ -283,6 +282,8 @@ class ObservedObject:
 		
 		return self.meanPosition
 		
+	def setWindowIndex(self, windowIndex):
+		self.windowIndex = windowIndex
 		
 	def addExposureByObject(self, newValue, MJD):
 		""" Adds a new exposure object to this object
@@ -292,7 +293,7 @@ class ObservedObject:
 		exposure.counts = newValue['counts']
 		exposure.exposureTime = 0
 		exposure.MJD = MJD
-		exposure.FWHM = 0
+		exposure.FWHM = newValue['radius']
 		self.exposures.append(exposure)
 		self.numExposures+= 1
 		self.currentPosition = (newValue['x'], newValue['y'] )
@@ -321,13 +322,6 @@ class ObservedObject:
 		if (distance>radius): return -1;
 		return distance;	
 		
-	def toString(self):
-		""" Returns a nicely formatted description of this object (for debug purposes)
-		"""
-		out = ""
-		out += "ID: " + str(self.id) + " (" + str(self.currentPosition[0]) + ", " + str(self.currentPosition[1]) + ") frames: " + str(self.numExposures) + "   last counts:" + str(self.exposures[-1].counts)
-		return out
-		
 	def __repr__(self):
 		self.lastCounts = self.exposures[-1].counts
 		return repr((self.id, self.lastCounts))
@@ -336,7 +330,9 @@ class ObservedObject:
 		""" Returns a nicely formatted description of this object (for debug purposes)
 		"""
 		out = ""
-		out += "ID: " + str(self.id) + " (" + str(self.currentPosition[0]) + ", " + str(self.currentPosition[1]) + ") frames: " + str(self.numExposures) + "   last counts:" + str(self.exposures[-1].counts)
+		out += "ID: " + str(self.id) + " (" + str(self.currentPosition[0]) + ", " \
+				 + str(self.currentPosition[1]) + ") frames: " + str(self.numExposures) + \
+				"   last counts:" + str(self.exposures[-1].counts) + " onwindow: " + str(self.windowIndex)
 		return out
 		
 	def toJSON(self):

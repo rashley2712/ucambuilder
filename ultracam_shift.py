@@ -7,6 +7,8 @@ import numpy as np
 from   scipy.ndimage.filters import gaussian_filter
 from   numpy.linalg import solve
 import math
+import matplotlib.pyplot
+
 
 def vimage(cat1, cat2, dmax, psize, fwhm):
     """Given two position catalogues of stars, each a numpy array of the form
@@ -43,16 +45,15 @@ def vimage(cat1, cat2, dmax, psize, fwhm):
             iy = NHALF+int(round((y2-y1)/psize))
             img[iy,ix] += 1
 
-    #print img
     # smooth image
     img = gaussian_filter(img,fwhm/psize/2.3548,mode='constant')
-    #print img
+
     # identify maximum pixel
     ind = np.arange(NSIDE)
     ix, iy = np.meshgrid(ind, ind)
     peak = img == img.max()
-    if len(ix[peak]) > 1:
-        raise Exception("Found more than one maximum pixel")
+    #if len(ix[peak]) > 1:
+    #    raise Exception("Found more than one maximum pixel")
 
     # now have first approximation to the shift
     ixp = ix[peak][0]
@@ -80,7 +81,7 @@ def vimage(cat1, cat2, dmax, psize, fwhm):
         x   = solve(A,b)
         xr  = xp - psize*x[0]
         yr  = yp - psize*x[1]
-    return (xp,yp,xr,yr)
+    return (img, xp,yp,xr,yr)
 
 def match(cat1, cat2, xs, ys, mmax):
     """
@@ -156,7 +157,7 @@ if __name__ == '__main__':
         print x2
         cat2 = np.array(zip(x2, y2))
 
-        xp,yp,xr,yr = vimage(cat1, cat2, 10, psize, fwhm)
+        xp,yp,xr,yr = vimage(cat1, cat2, dmax, psize, fwhm)
         print 'x=',xs, xp, xr, 'y=', ys, yp, yr
 
         d1.append(np.sqrt((xp-xs)**2+(yp-ys)**2))

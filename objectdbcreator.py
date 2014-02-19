@@ -3,13 +3,14 @@
 import ultracamutils
 import matplotlib.pyplot
 import argparse
-import numpy
+import numpy, math
 import classes
 import rashley_utils as utils
 from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import sys
 import ultracam_shift
+import time
 
 def getNextFrame():
 	""" Reads the next frame from the CCD using trm routines. Returns all three channels in a dict object (an array of windows)
@@ -65,40 +66,75 @@ def getNextFrame():
 
 	return fullFrame
 
+def updateMasterObjectList(masterObjectList, newObjects, windowIndex):
+	for o in newObjects:
+		newID = ultracamutils.getUniqueID(masterObjectList)
+		newObject = classes.ObservedObject(newID)
+		newObject.setWindowIndex(windowIndex)
+		print "Adding an object with newID:", newID 
+		newObject.addExposureByObject(o, wholeFrame['MJD'])
+		masterObjectList.append(newObject)
+		
+	#testObject = masterObjectList[len(masterObjectList)-3]
+	#print testObject
+
+
+	
 	
 def updateCatalog(MJD, windowNumber, frameNumber, newObjects):
-	debug.write("Updating the catalog...")
 	debug.write("Frame number: %d, Window number: %d"%(frameNumber, windowNumber))
+	""" Reject any objects flagged by SEXtractor as bad objects
+	"""
+	newObjects = ultracamutils.rejectBadObjects(newObjects)
+
 	debug.write("Number of objects in this window: %d"%(len(newObjects)))
 	oldCatalog = catalogs.getCatalog(windowNumber)
 	debug.write("Number of objects in the same window of the previous frame: %d"%(len(oldCatalog)))
 	
-	""" Reject any objects flagged by SEXtractor as bad objects
-	"""
-	newObjects = ultracamutils.rejectBadObjects(newObjects)
 	
 	if len(oldCatalog)==0:
 		#This is probably the first frame and there are currently no objects to compare to ... add them all to the catalog
-		cat = []
-
-		print "newObjects:",  newObjects
+		x = []
+		y = []
 		for o in newObjects:
-			cat.append( [ o['x'],  o['y'] ] )
+			x.append(o['x'])
+			y.append(o['y'])
+		cat = numpy.array(zip(x, y))
 		catalogs.setCatalog(windowNumber, cat)
+		updateMasterObjectList(masterObjectList, newObjects, windowNumber)
 		return
 		
 	# Create a new catalog
-	newCatalog = []
+	x = []
+	y = []
 	for o in newObjects:
-		newCatalog.append( [ o['x'], o['y'] ] )
-	print newCatalog
-	
+		x.append(o['x'])
+		y.append(o['y'])
+	newCatalog = numpy.array(zip(x, y))
+		
 	psize  = 0.5
 	fwhm   = 4.
-	dmax   = 20.
+	dmax   = 10.
 	mmax   = 3.
 
-	shift.vimage(oldCatalog, newCatalog, dmax, psize, fwhm)
+	(gaussImage, xp, yp, xr, yr) = ultracam_shift.vimage(oldCatalog, newCatalog, dmax, psize, fwhm)
+	(nmatch, inds) = ultracam_shift.match(oldCatalog, newCatalog, xp, yp, mmax)
+
+	catalogs.setCatalog(windowNumber, newCatalog)
+
+	offsetMag = math.sqrt(xr*xr + yr*yr)
+	debug.write("Matched objects: %d   Offset distance: %f"%(nmatch, offsetMag))
+	
+	#updateMasterCatalog()
+	
+	print inds
+	
+	if arg.preview:
+		matplotlib.pyplot.figure(1)
+		fig = matplotlib.pyplot.gcf()
+		matplotlib.pyplot.subplot(1, frameInfo.numWindows, windowNumber)
+		gaussPlot = matplotlib.pyplot.imshow(gaussImage, cmap='Reds', interpolation='nearest')
+		if windowNumber == frameInfo.numWindows-1: matplotlib.pyplot.draw()
 
 if __name__ == "__main__":
 	
@@ -110,6 +146,7 @@ if __name__ == "__main__":
 	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run')
 	parser.add_argument('-s', '--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
+	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
 	arg = parser.parse_args()
 
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -123,6 +160,7 @@ if __name__ == "__main__":
 	
 	if arg.preview: 
 		matplotlib.pyplot.ion()
+		fig = matplotlib.pyplot.gcf()
 	
 	startFrame = arg.startframe
 	if startFrame<1:
@@ -177,7 +215,11 @@ if __name__ == "__main__":
 		if arg.preview:
 			# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
 			mplFrame = numpy.rot90(assembledRedFrame)
-			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='gray', interpolation='nearest')
+			fig = matplotlib.pyplot.figure(0)
+			windowTitle =  "[" + str(trueFrameNumber) + "] " + str(wholeFrame['MJD'])
+			fig.canvas.set_window_title(windowTitle)
+			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='Reds', interpolation='nearest')
 			matplotlib.pyplot.draw()
 			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
-	
+		if arg.sleep!=0:
+			time.sleep(arg.sleep)
