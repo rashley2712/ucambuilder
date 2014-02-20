@@ -66,11 +66,15 @@ def getNextFrame():
 
 	return fullFrame
 
-def updateMasterObjectList(masterObjectList, newObjects, windowIndex):
+def updateMasterObjectList(masterObjectList, newObjects, offSet):
+	offSetX , offSetY = offSet
 	for o in newObjects:
+		objectX = o['x']
+		objectY = o['y']
+		print "Absolute position:", objectX, objectY
+		# Add this to the new object list
 		newID = ultracamutils.getUniqueID(masterObjectList)
 		newObject = classes.ObservedObject(newID)
-		newObject.setWindowIndex(windowIndex)
 		print "Adding an object with newID:", newID 
 		newObject.addExposureByObject(o, wholeFrame['MJD'])
 		masterObjectList.append(newObject)
@@ -81,18 +85,16 @@ def updateMasterObjectList(masterObjectList, newObjects, windowIndex):
 
 	
 	
-def updateCatalog(MJD, windowNumber, frameNumber, newObjects):
-	debug.write("Frame number: %d, Window number: %d"%(frameNumber, windowNumber))
-	""" Reject any objects flagged by SEXtractor as bad objects
-	"""
-	newObjects = ultracamutils.rejectBadObjects(newObjects)
-
+def updateCatalog(MJD, frameNumber, newObjects):
+	debug.write("Frame number: %d"%(frameNumber))
 	debug.write("Number of objects in this window: %d"%(len(newObjects)))
-	oldCatalog = catalogs.getCatalog(windowNumber)
-	debug.write("Number of objects in the same window of the previous frame: %d"%(len(oldCatalog)))
+
+	if len(newObjects)==0:
+		# SEX found no objects in this window.... skip it
+		return
+
 	
-	
-	if len(oldCatalog)==0:
+	if len(masterObjectList)==0:
 		#This is probably the first frame and there are currently no objects to compare to ... add them all to the catalog
 		x = []
 		y = []
@@ -100,8 +102,8 @@ def updateCatalog(MJD, windowNumber, frameNumber, newObjects):
 			x.append(o['x'])
 			y.append(o['y'])
 		cat = numpy.array(zip(x, y))
-		catalogs.setCatalog(windowNumber, cat)
-		updateMasterObjectList(masterObjectList, newObjects, windowNumber)
+		offSet = (0,0)
+		updateMasterObjectList(masterObjectList, newObjects, offSet)
 		return
 		
 	# Create a new catalog
@@ -122,12 +124,12 @@ def updateCatalog(MJD, windowNumber, frameNumber, newObjects):
 
 	catalogs.setCatalog(windowNumber, newCatalog)
 
-	offsetMag = math.sqrt(xr*xr + yr*yr)
+	offsetMag = numpy.sqrt(xr*xr + yr*yr)
 	debug.write("Matched objects: %d   Offset distance: %f"%(nmatch, offsetMag))
 	
 	#updateMasterCatalog()
 	
-	print inds
+	#print inds
 	
 	if arg.preview:
 		matplotlib.pyplot.figure(1)
@@ -193,13 +195,15 @@ if __name__ == "__main__":
 		redFrame = wholeFrame['r']
 		assembledRedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 		
+		newObjects = []
 		for j in range(frameInfo.numWindows): 
 			windowImage = redFrame[j]
 			tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, 'r', windowImage)
 			catFilename = ultracamutils.runSex(tmpFilename)
-			newObjects = ultracamutils.readSexObjects(catFilename)
+			newObjectsinWindow = ultracamutils.readSexObjects(catFilename)
 			
-			updateCatalog(wholeFrame['MJD'], j, frameIndex, newObjects)
+			newObjectsinWindow = ultracamutils.rejectBadObjects(newObjectsinWindow)
+			
 
 			if config.KEEP_TMP_FILES!="1":
 				ultracamutils.removeTMPFile(tmpFilename)
@@ -212,10 +216,18 @@ if __name__ == "__main__":
 			
 			assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
 
+			for o in newObjectsinWindow:
+				o['x'] = o['x'] + xll
+				o['y'] = o['y'] + yll
+				newObjects.append(o)
+
+		updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
+		
+
 		if arg.preview:
 			# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
 			mplFrame = numpy.rot90(assembledRedFrame)
-			fig = matplotlib.pyplot.figure(0)
+			fig = matplotlib.pyplot.figure(0, figsize=(12,12))
 			windowTitle =  "[" + str(trueFrameNumber) + "] " + str(wholeFrame['MJD'])
 			fig.canvas.set_window_title(windowTitle)
 			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='Reds', interpolation='nearest')
