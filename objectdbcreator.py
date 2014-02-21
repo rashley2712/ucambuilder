@@ -144,6 +144,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Reads the Ultracam [dd-mm-yyyy/runxxx.dat] files and identifies and tracks the objects')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib')
+	parser.add_argument('-g', '--png', action='store_true', help='Write PNG images of the preview to local disk')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run')
@@ -217,21 +218,33 @@ if __name__ == "__main__":
 			assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
 
 			for o in newObjectsinWindow:
-				o['x'] = o['x'] + xll
-				o['y'] = o['y'] + yll
+				(windowX, windowY) = ( o['y'], o['x'] )
+				(absoluteX, absoluteY) = (windowX + xll - 1, windowY + yll - 1)
+				debug.write("[%d, %d] -> [%d, %d]"%(int(windowX), int(windowY), int(absoluteX), int(absoluteY)))
+				o['absX'] = absoluteX
+				o['absY'] = absoluteY
 				newObjects.append(o)
 
-		updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
+		#updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
 		
 
 		if arg.preview:
 			# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
 			mplFrame = numpy.rot90(assembledRedFrame)
+			mplFrame = numpy.flipud(mplFrame)
 			fig = matplotlib.pyplot.figure(0, figsize=(12,12))
 			windowTitle =  "[" + str(trueFrameNumber) + "] " + str(wholeFrame['MJD'])
 			fig.canvas.set_window_title(windowTitle)
 			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='Reds', interpolation='nearest')
+			matplotlib.pyplot.gca().invert_yaxis()
+			for i in newObjects:
+				x = i['absX']
+				y = i['absY']
+				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10.0, color='green', fill=False, linewidth=2.0))
+
 			matplotlib.pyplot.draw()
+			if arg.png: 
+				matplotlib.pyplot.savefig("r_" + str(frameIndex).zfill(5) +  ".png")
 			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
