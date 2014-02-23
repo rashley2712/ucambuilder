@@ -2,7 +2,7 @@
 import rashley_utils as utils
 import sys, subprocess, re, json
 import classes, numpy as np
-from astropy.io import fits
+import astropy.io.fits
 
 	
 if (__name__ == "__main__"):
