@@ -289,20 +289,20 @@ class ObservedObject:
 		""" Adds a new exposure object to this object
 		"""
 		exposure = ExposureObject()
-		exposure.centroid = ( newValue['x'], newValue['y'] ) 
+		exposure.centroid = ( newValue['absX'], newValue['absY'] ) 
 		exposure.counts = newValue['counts']
 		exposure.exposureTime = 0
 		exposure.MJD = MJD
 		exposure.FWHM = newValue['radius']
 		self.exposures.append(exposure)
 		self.numExposures+= 1
-		self.currentPosition = (newValue['x'], newValue['y'] )
+		self.currentPosition = (newValue['absX'], newValue['absY'] )
 		
 	def isDistanceMatch(self, object):
 		""" Returns -1 if object is not a match, or the distance if it is closer than the distanceThreshold
 		"""
-		xo = object['x'] - self.currentPosition[0]
-		yo = object['y'] - self.currentPosition[1]
+		xo = object['absX'] - self.currentPosition[0]
+		yo = object['absY'] - self.currentPosition[1]
 		distance = math.sqrt(xo*xo + yo*yo)
 		if (distance>self.distanceThreshold): return -1;
 		return distance;
@@ -332,7 +332,7 @@ class ObservedObject:
 		out = ""
 		out += "ID: " + str(self.id) + " (" + str(self.currentPosition[0]) + ", " \
 				 + str(self.currentPosition[1]) + ") frames: " + str(self.numExposures) + \
-				"   last counts:" + str(self.exposures[-1].counts) + " onwindow: " + str(self.windowIndex)
+				"   last counts:" + str(self.exposures[-1].counts)
 		return out
 		
 	def toJSON(self):
@@ -342,7 +342,7 @@ class ObservedObject:
 		testObject['y'] = self.currentPosition[1]
 		exposureDataArray = []
 		for c in self.exposures:
-			exposureData = (c.MJD, c.counts, c.centroid[0], c.centroid[1])
+			exposureData = (c.MJD, float(c.counts), c.centroid[0], c.centroid[1])
 			exposureDataArray.append(exposureData)
 		testObject['data'] = exposureDataArray
 		return json.dumps(testObject)

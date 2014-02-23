@@ -11,12 +11,13 @@ from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import sys
 import ultracam_shift
 import time
+import json
 
 def getNextFrame():
 	""" Reads the next frame from the CCD using trm routines. Returns all three channels in a dict object (an array of windows)
 	    If we are at the first frame, also creates a 'frameInfo' object with information about window dimensions
 	"""
-	global catalogs
+	global tempCatalogs
 	try:
 		ccdFrame = rdat()
 	except UltracamError:
@@ -42,7 +43,7 @@ def getNextFrame():
 		""" For the object tracking piece we are going to keep a temporary store of catalogues (of objects) for each window independently.
 		    We will use the class FrameCatalogObject for this.
 		"""
-		catalogs = classes.FrameCatalogObject(numWindows)
+		tempCatalogs = classes.FrameCatalogObject(numWindows)
 			
    	frameMJD = frameR.time.mjd
 	goodTime = frameR.time.good 
@@ -66,77 +67,75 @@ def getNextFrame():
 
 	return fullFrame
 
-def updateMasterObjectList(masterObjectList, newObjects, offSet):
+def updateMasterCatalog(newObjects, offSet):
 	offSetX , offSetY = offSet
+	recognisedCount = 0
 	for o in newObjects:
-		objectX = o['x']
-		objectY = o['y']
-		print "Absolute position:", objectX, objectY
-		# Add this to the new object list
-		newID = ultracamutils.getUniqueID(masterObjectList)
-		newObject = classes.ObservedObject(newID)
-		print "Adding an object with newID:", newID 
-		newObject.addExposureByObject(o, wholeFrame['MJD'])
-		masterObjectList.append(newObject)
+		testX, testY = o['absX'] + offSetX, o['absY'] + offSetY
 		
-	#testObject = masterObjectList[len(masterObjectList)-3]
-	#print testObject
+		# First test if this object is close to another....
+		objectRecognised = False
 
+		for eo in masterObjectList:
+			if (eo.isDistanceMatch(o)!=-1):
+				eo.addExposureByObject(o, wholeFrame['MJD'])
+				objectRecognised = True
+				recognisedCount+= 1
+				break
+		if (not objectRecognised):
+			# Add this to the new object list
+			newID = ultracamutils.getUniqueID(masterObjectList)
+			newObject = classes.ObservedObject(newID)
+			newObject.addExposureByObject(o, wholeFrame['MJD'])
+			masterObjectList.append(newObject)
+	totalObjects = len(masterObjectList)
+	debug.write("%d objects being tracked. %d%% matches in this frame."%(totalObjects, (float(recognisedCount)/float(totalObjects))*100.0))
 
-	
 	
 def updateCatalog(MJD, frameNumber, newObjects):
+	global prevCatalog
 	debug.write("Frame number: %d"%(frameNumber))
-	debug.write("Number of objects in this window: %d"%(len(newObjects)))
+	debug.write("Number of objects in this frame: %d"%(len(newObjects)))
 
-	if len(newObjects)==0:
-		# SEX found no objects in this window.... skip it
-		return
-
-	
-	if len(masterObjectList)==0:
+	if len(prevCatalog)==0:
 		#This is probably the first frame and there are currently no objects to compare to ... add them all to the catalog
 		x = []
 		y = []
 		for o in newObjects:
-			x.append(o['x'])
-			y.append(o['y'])
-		cat = numpy.array(zip(x, y))
-		offSet = (0,0)
-		updateMasterObjectList(masterObjectList, newObjects, offSet)
+			x.append(o['absX'])   # Use the x, y values that include the Window offset
+			y.append(o['absY'])
+		prevCatalog = numpy.array(zip(x, y))
+		updateMasterCatalog(newObjects, (0, 0))
 		return
 		
 	# Create a new catalog
 	x = []
 	y = []
 	for o in newObjects:
-		x.append(o['x'])
-		y.append(o['y'])
+		x.append(o['absX'])
+		y.append(o['absY'])
 	newCatalog = numpy.array(zip(x, y))
 		
 	psize  = 0.5
 	fwhm   = 4.
-	dmax   = 10.
-	mmax   = 3.
+	dmax   = 30.
+	mmax   = 30.
 
-	(gaussImage, xp, yp, xr, yr) = ultracam_shift.vimage(oldCatalog, newCatalog, dmax, psize, fwhm)
-	(nmatch, inds) = ultracam_shift.match(oldCatalog, newCatalog, xp, yp, mmax)
+	(gaussImage, xp, yp, xr, yr) = ultracam_shift.vimage(prevCatalog, newCatalog, dmax, psize, fwhm)
+	(nmatch, inds) = ultracam_shift.match(prevCatalog, newCatalog, xp, yp, mmax)
 
-	catalogs.setCatalog(windowNumber, newCatalog)
+	prevCatalog = newCatalog
 
 	offsetMag = numpy.sqrt(xr*xr + yr*yr)
-	debug.write("Matched objects: %d   Offset distance: %f"%(nmatch, offsetMag))
+	debug.write("Channel: " + channel + " -> Matched objects: %d   Offset distance: %f"%(nmatch, offsetMag))
 	
-	#updateMasterCatalog()
+	updateMasterCatalog(newObjects, (xr, yr))
 	
 	#print inds
 	
 	if arg.preview:
-		matplotlib.pyplot.figure(1)
-		fig = matplotlib.pyplot.gcf()
-		matplotlib.pyplot.subplot(1, frameInfo.numWindows, windowNumber)
-		gaussPlot = matplotlib.pyplot.imshow(gaussImage, cmap='Reds', interpolation='nearest')
-		if windowNumber == frameInfo.numWindows-1: matplotlib.pyplot.draw()
+		matplotlib.pyplot.figure(channel+"_gauss",  figsize=(4,4))
+		gaussPlot = matplotlib.pyplot.imshow(gaussImage, cmap=colourMaps[channel], interpolation='nearest')
 
 if __name__ == "__main__":
 	
@@ -151,6 +150,10 @@ if __name__ == "__main__":
 	parser.add_argument('-s', '--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
 	arg = parser.parse_args()
+
+	channelNames = ['r','g', 'b']
+	colourMaps = {'r': 'Reds', 'g':'Greens', 'b':'Blues'}
+	allObjects = { 'r': [], 'g': [], 'b':[]}
 
 	config = ultracamutils.readConfigFile(arg.configfile)
 	debug = classes.debugObject(config.DEBUG)
@@ -185,7 +188,7 @@ if __name__ == "__main__":
 			frameRange = requestedNumFrames
 	
 	frameInfo = classes.FrameObject()
-	masterObjectList = []
+	channelTempCatalogs = {'r':[], 'g':[], 'b':[]}
 	""" Run through all the frames in the .dat file.
 	"""
 	for frameIndex in range(1, frameRange + 1):
@@ -193,58 +196,90 @@ if __name__ == "__main__":
 		wholeFrame = getNextFrame()
 		debug.write("Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + "] MJD:" + str(wholeFrame['MJD']), level = 2)
 		
-		redFrame = wholeFrame['r']
-		assembledRedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+		for channel in channelNames:
+			if (channel == 'b') & (trueFrameNumber % rdat.nblue != 0):      # This is an empty blue frame so skip it
+				continue   
+
+			prevCatalog = channelTempCatalogs[channel]
+			masterObjectList = allObjects[channel]
 		
-		newObjects = []
-		for j in range(frameInfo.numWindows): 
-			windowImage = redFrame[j]
-			tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, 'r', windowImage)
-			catFilename = ultracamutils.runSex(tmpFilename)
-			newObjectsinWindow = ultracamutils.readSexObjects(catFilename)
-			
-			newObjectsinWindow = ultracamutils.rejectBadObjects(newObjectsinWindow)
-			
-
-			if config.KEEP_TMP_FILES!="1":
-				ultracamutils.removeTMPFile(tmpFilename)
-				ultracamutils.removeTMPFile(catFilename)
-
-			xll = frameInfo.getWindow(j).xll 
-			yll = frameInfo.getWindow(j).yll 
-			xsize = frameInfo.getWindow(j).xsize 
-			ysize = frameInfo.getWindow(j).ysize 
-			
-			assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
-
-			for o in newObjectsinWindow:
-				(windowX, windowY) = ( o['y'], o['x'] )
-				(absoluteX, absoluteY) = (windowX + xll - 1, windowY + yll - 1)
-				debug.write("[%d, %d] -> [%d, %d]"%(int(windowX), int(windowY), int(absoluteX), int(absoluteY)))
-				o['absX'] = absoluteX
-				o['absY'] = absoluteY
-				newObjects.append(o)
-
-		#updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
+			singleChannelFrame = wholeFrame[channel]
+			assembledRedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 		
+			newObjects = []
+			for j in range(frameInfo.numWindows): 
+				windowImage = singleChannelFrame[j]
+				tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, channel, windowImage)
+				catFilename = ultracamutils.runSex(tmpFilename)
+				newObjectsinWindow = ultracamutils.readSexObjects(catFilename)
+			
+				newObjectsinWindow = ultracamutils.rejectBadObjects(newObjectsinWindow)
+			
+
+				if config.KEEP_TMP_FILES!="1":
+					ultracamutils.removeTMPFile(tmpFilename)
+					ultracamutils.removeTMPFile(catFilename)
+
+				xll = frameInfo.getWindow(j).xll 
+				yll = frameInfo.getWindow(j).yll 
+				xsize = frameInfo.getWindow(j).xsize 
+				ysize = frameInfo.getWindow(j).ysize 
+			
+				assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+
+				for o in newObjectsinWindow:
+					(windowX, windowY) = ( o['y'], o['x'] )
+					(absoluteX, absoluteY) = (windowX + xll - 1, windowY + yll - 1)
+					#debug.write("[%d, %d] -> [%d, %d]"%(int(windowX), int(windowY), int(absoluteX), int(absoluteY)))
+					o['absX'] = absoluteX
+					o['absY'] = absoluteY
+					newObjects.append(o)
+
+			updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
+		
+			allObjects[channel] = masterObjectList
+			channelTempCatalogs[channel] = prevCatalog
+
+			if arg.preview:
+				# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
+				mplFrame = numpy.rot90(assembledRedFrame)
+				mplFrame = numpy.flipud(mplFrame)
+				fig = matplotlib.pyplot.figure(channel + "_main", figsize=(10,10))
+				windowTitle =  "[" + str(trueFrameNumber) + "] " + str(wholeFrame['MJD'])
+				fig.canvas.set_window_title(windowTitle)
+				imgplot = matplotlib.pyplot.imshow(mplFrame, cmap=colourMaps[channel], interpolation='nearest')
+				matplotlib.pyplot.gca().invert_yaxis()
+				for i in newObjects:
+					x = i['absX']
+					y = i['absY']
+					fwhm = i['radius']
+					matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), fwhm*3, color='green', fill=False, linewidth=2.0))
+
+				if arg.png: 
+					matplotlib.pyplot.savefig("r_" + str(frameIndex).zfill(5) +  ".png")
+			if arg.sleep!=0:
+				time.sleep(arg.sleep)
 
 		if arg.preview:
-			# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
-			mplFrame = numpy.rot90(assembledRedFrame)
-			mplFrame = numpy.flipud(mplFrame)
-			fig = matplotlib.pyplot.figure(0, figsize=(12,12))
-			windowTitle =  "[" + str(trueFrameNumber) + "] " + str(wholeFrame['MJD'])
-			fig.canvas.set_window_title(windowTitle)
-			imgplot = matplotlib.pyplot.imshow(mplFrame, cmap='Reds', interpolation='nearest')
-			matplotlib.pyplot.gca().invert_yaxis()
-			for i in newObjects:
-				x = i['absX']
-				y = i['absY']
-				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10.0, color='green', fill=False, linewidth=2.0))
-
 			matplotlib.pyplot.draw()
-			if arg.png: 
-				matplotlib.pyplot.savefig("r_" + str(frameIndex).zfill(5) +  ".png")
 			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
-		if arg.sleep!=0:
-			time.sleep(arg.sleep)
+
+		
+	if (int(config.WRITE_JSON)==1):
+
+		for channel in channelNames:
+			masterObjectList = allObjects[channel]
+			allChannelObjects = []
+		
+			for m in masterObjectList:
+				allChannelObjects.append(m.toJSON())
+		
+			runIdent = arg.runname
+		
+			outputFilename = utils.addPaths(config.SITE_PATH,runIdent) 
+			outputFilename+= channel + ".json"
+			debug.write("Writing JSON file: " + outputFilename)
+	
+			outputfile = open( outputFilename, "w" )
+			json.dump(allChannelObjects, outputfile)
+			outputfile.close()
