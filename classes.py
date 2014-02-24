@@ -117,14 +117,32 @@ class FrameObject:
 		self.windows = []
 		self.nxmax = 0
 		self.nymax = 0
+		self.minX = 0
+		self.maxX = 1050
+		self.minY = 0
+		self.maxY = 1050
 		
 	def addWindow(self, xoffset, yoffset, xsize, ysize):
 		window = WindowObject(xoffset, yoffset, xsize, ysize)
 		self.windows.append(window)
 		self.numWindows+= 1
+	
+	def calcMaxExtents(self):
+		self.minX = 1050
+		self.maxX = 0
+		self.minY = 1050
+		self.maxY = 0
+		for w in self.windows:
+			if w.xll<self.minX: self.minX = w.xll;
+			if (w.xll+w.xsize)>self.maxX: self.maxX = w.xll+w.xsize - 1;
+			if w.yll<self.minY: self.minY = w.yll;
+			if (w.yll+w.ysize)>self.maxY: self.maxY = w.yll+w.ysize - 1;
 		
 	def getWindow(self, index):
 		return self.windows[index]
+		
+	def getMaxExtents(self):
+		return (self.minX, self.minY, self.maxX, self.maxY)
 		
 	def __str__(self):
 		out = "NumWindows: " + str(self.numWindows) + " dimensions (" + str(self.nxmax) + ", " + str(self.nymax) + ")"
