@@ -43,7 +43,8 @@ def getNextFrame():
 		""" For the object tracking piece we are going to keep a temporary store of catalogues (of objects) for each window independently.
 		    We will use the class FrameCatalogObject for this.
 		"""
-		tempCatalogs = classes.FrameCatalogObject(numWindows)
+		#tempCatalogs = classes.FrameCatalogObject(numWindows)
+		frameInfo.calcMaxExtents()
 			
    	frameMJD = frameR.time.mjd
 	goodTime = frameR.time.good 
@@ -143,6 +144,7 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Reads the Ultracam [dd-mm-yyyy/runxxx.dat] files and identifies and tracks the objects')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib')
+	parser.add_argument('-r', '--crop', action='store_true', help='Crop the images in the preview windows to show only areas with exposed pixels')
 	parser.add_argument('-g', '--png', action='store_true', help='Write PNG images of the preview to local disk')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
@@ -204,7 +206,7 @@ if __name__ == "__main__":
 			masterObjectList = allObjects[channel]
 		
 			singleChannelFrame = wholeFrame[channel]
-			assembledRedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+			assembledChannelFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 		
 			newObjects = []
 			for j in range(frameInfo.numWindows): 
@@ -225,7 +227,7 @@ if __name__ == "__main__":
 				xsize = frameInfo.getWindow(j).xsize 
 				ysize = frameInfo.getWindow(j).ysize 
 			
-				assembledRedFrame[xll:xll+xsize, yll:yll+ysize] = assembledRedFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+				assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] = assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
 
 				for o in newObjectsinWindow:
 					(windowX, windowY) = ( o['y'], o['x'] )
@@ -235,20 +237,26 @@ if __name__ == "__main__":
 					o['absY'] = absoluteY
 					newObjects.append(o)
 
-			updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
+			if len(newObjects)>0:
+				updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
 		
 			allObjects[channel] = masterObjectList
 			channelTempCatalogs[channel] = prevCatalog
+			
+			if arg.crop:
+				xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
+				print "Cropping to:", xmin, xmax, ymin, ymax
+				assembledChannelFrame = assembledChannelFrame[xmin:xmax, ymin:ymax]
 
 			if arg.preview:
 				# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
-				mplFrame = numpy.rot90(assembledRedFrame)
+				mplFrame = numpy.rot90(assembledChannelFrame)
 				mplFrame = numpy.flipud(mplFrame)
 				fig = matplotlib.pyplot.figure(channel + "_main", figsize=(10,10))
 				windowTitle =  "[" + str(trueFrameNumber) + "] " + str(wholeFrame['MJD'])
 				fig.canvas.set_window_title(windowTitle)
 				imgplot = matplotlib.pyplot.imshow(mplFrame, cmap=colourMaps[channel], interpolation='nearest')
-				matplotlib.pyplot.gca().invert_yaxis()
+				#matplotlib.pyplot.gca().invert_yaxis()
 				for i in newObjects:
 					x = i['absX']
 					y = i['absY']
