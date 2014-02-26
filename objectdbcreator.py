@@ -12,6 +12,7 @@ import sys
 import ultracam_shift
 import time
 import json
+import Image,ImageDraw
 
 def getNextFrame():
 	""" Reads the next frame from the CCD using trm routines. Returns all three channels in a dict object (an array of windows)
@@ -45,6 +46,11 @@ def getNextFrame():
 		"""
 		#tempCatalogs = classes.FrameCatalogObject(numWindows)
 		frameInfo.calcMaxExtents()
+		stackedImages['r'] = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+		stackedImages['g'] = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+		stackedImages['b'] = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+		
+
 			
    	frameMJD = frameR.time.mjd
 	goodTime = frameR.time.good 
@@ -151,9 +157,13 @@ if __name__ == "__main__":
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run')
 	parser.add_argument('-s', '--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
+	parser.add_argument('-C', '--channels', default='rgb', type=str, help='Which channels to run the extraction on \'rgb\'')
 	arg = parser.parse_args()
 
-	channelNames = ['r','g', 'b']
+	channelNames = []
+	for channelRequested in arg.channels:
+		channelNames.append(channelRequested)
+		
 	colourMaps = {'r': 'Reds', 'g':'Greens', 'b':'Blues'}
 	allObjects = { 'r': [], 'g': [], 'b':[]}
 
@@ -191,6 +201,7 @@ if __name__ == "__main__":
 	
 	frameInfo = classes.FrameObject()
 	channelTempCatalogs = {'r':[], 'g':[], 'b':[]}
+	stackedImages = {'r':[], 'g':[], 'b':[]}
 	""" Run through all the frames in the .dat file.
 	"""
 	for frameIndex in range(1, frameRange + 1):
@@ -207,6 +218,7 @@ if __name__ == "__main__":
 		
 			singleChannelFrame = wholeFrame[channel]
 			assembledChannelFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+			stackedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 		
 			newObjects = []
 			for j in range(frameInfo.numWindows): 
@@ -217,7 +229,6 @@ if __name__ == "__main__":
 			
 				newObjectsinWindow = ultracamutils.rejectBadObjects(newObjectsinWindow)
 			
-
 				if config.KEEP_TMP_FILES!="1":
 					ultracamutils.removeTMPFile(tmpFilename)
 					ultracamutils.removeTMPFile(catFilename)
@@ -228,11 +239,11 @@ if __name__ == "__main__":
 				ysize = frameInfo.getWindow(j).ysize 
 			
 				assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] = assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+				stackedFrame[xll:xll+xsize, yll:yll+ysize] = stackedFrame[xll:xll+xsize, yll:yll+ysize] + windowImage
 
 				for o in newObjectsinWindow:
 					(windowX, windowY) = ( o['y'], o['x'] )
 					(absoluteX, absoluteY) = (windowX + xll - 1, windowY + yll - 1)
-					#debug.write("[%d, %d] -> [%d, %d]"%(int(windowX), int(windowY), int(absoluteX), int(absoluteY)))
 					o['absX'] = absoluteX
 					o['absY'] = absoluteY
 					newObjects.append(o)
@@ -242,6 +253,7 @@ if __name__ == "__main__":
 		
 			allObjects[channel] = masterObjectList
 			channelTempCatalogs[channel] = prevCatalog
+			stackedImages[channel] = numpy.add(stackedImages[channel], stackedFrame)
 			
 			if arg.crop:
 				xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
@@ -265,12 +277,29 @@ if __name__ == "__main__":
 
 				if arg.png: 
 					matplotlib.pyplot.savefig("r_" + str(frameIndex).zfill(5) +  ".png")
+			
 			if arg.sleep!=0:
 				time.sleep(arg.sleep)
 
 		if arg.preview:
 			matplotlib.pyplot.draw()
 			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
+
+	""" Write the stacked images to a PNG file
+	"""
+	for channel in channelNames:
+		runIdent = arg.runname
+		imageFilename = utils.addPaths(config.SITE_PATH,runIdent) + "_" + channel + ".png"
+		imgData = stackedImages[channel]
+		imgData = numpy.divide(imgData, frameIndex)
+		imgData = ultracamutils.percentiles(imgData, 20, 98)
+		imgSize = numpy.shape(imgData)
+		imgLength = imgSize[0] * imgSize[1]
+		testData = numpy.reshape(imgData, imgLength, order="F")
+		img = Image.new("L", imgSize)
+		img.putdata(testData)
+		debug.write("Writing PNG file: " + imageFilename) 
+		img.save(imageFilename, "PNG")
 
 		
 	if (int(config.WRITE_JSON)==1):
@@ -281,6 +310,7 @@ if __name__ == "__main__":
 		
 			for m in masterObjectList:
 				allChannelObjects.append(m.toJSON())
+				print m
 		
 			runIdent = arg.runname
 		
