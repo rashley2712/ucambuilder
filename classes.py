@@ -142,7 +142,7 @@ class FrameObject:
 		return self.windows[index]
 		
 	def getMaxExtents(self):
-		return (self.minX, self.minY, self.maxX, self.maxY)
+		return (self.minX, self.maxX, self.minY, self.maxY)
 		
 	def __str__(self):
 		out = "NumWindows: " + str(self.numWindows) + " dimensions (" + str(self.nxmax) + ", " + str(self.nymax) + ")"

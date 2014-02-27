@@ -263,6 +263,7 @@ if __name__ == "__main__":
 			if arg.preview:
 				# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
 				mplFrame = numpy.rot90(assembledChannelFrame)
+				#mplFrame = numpy.rot90(stackedImages[channel])
 				mplFrame = numpy.flipud(mplFrame)
 				fig = matplotlib.pyplot.figure(channel + "_main", figsize=(10,10))
 				windowTitle =  "[" + str(trueFrameNumber) + "] " + str(wholeFrame['MJD'])
@@ -270,8 +271,8 @@ if __name__ == "__main__":
 				imgplot = matplotlib.pyplot.imshow(mplFrame, cmap=colourMaps[channel], interpolation='nearest')
 				#matplotlib.pyplot.gca().invert_yaxis()
 				for i in newObjects:
-					x = i['absX']
-					y = i['absY']
+					x = i['absX'] if (not arg.crop) else i['absX'] - xmin
+					y = i['absY'] if (not arg.crop) else i['absY'] - ymin
 					fwhm = i['radius']
 					matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), fwhm*3, color='green', fill=False, linewidth=2.0))
 
