@@ -151,6 +151,26 @@ class FrameObject:
 			out+= str(i) + "\n"
 		return out
 
+class stackedImage:
+	def __init__(self):
+		self.numWindows = 0
+		self.windows = []
+		self.windowImages = []
+		self.exposuresCount = [] 
+		
+	def addWindow(self, windowData, windowImage):
+		self.windowImages.append(windowImage)
+		self.windows.append(windowData)
+		self.exposuresCount.append(0)
+		self.numWindows+= 1
+		
+	def addNewData(self, windowData, index):
+		originalImage = self.windowImages[index]
+		newImage = numpy.add(originalImage, windowData)
+		self.windowImages[index] = newImage
+		self.exposuresCount[index] = self.exposuresCount[index] + 1
+		
+
 class debugObject:
 	def __init__(self, debugLevel):
 		self.timeStamp = 0
@@ -186,7 +206,7 @@ class debugObject:
 				
 
 class WindowObject:
-	""" This class contains the definitions of the windows for a specific run
+	""" This class contains the definitions of a window within a run
 	"""
 	def __init__(self, xll, yll, xsize, ysize):
 		self.xll = xll

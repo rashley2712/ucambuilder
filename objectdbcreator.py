@@ -46,9 +46,13 @@ def getNextFrame():
 		"""
 		#tempCatalogs = classes.FrameCatalogObject(numWindows)
 		frameInfo.calcMaxExtents()
-		stackedImages['r'] = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
-		stackedImages['g'] = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
-		stackedImages['b'] = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+		for c in channelNames:
+			for w in range(frameInfo.numWindows):
+				windowInfo = frameInfo.getWindow(w)
+				stackedImageObject = stackedImages[c]
+				winnx, winny = (windowInfo.xsize, windowInfo.ysize) 
+				blankImage = numpy.zeros((winnx, winny))
+				stackedImageObject.addWindow(windowInfo, blankImage)
 		
 
 			
@@ -202,6 +206,12 @@ if __name__ == "__main__":
 	frameInfo = classes.FrameObject()
 	channelTempCatalogs = {'r':[], 'g':[], 'b':[]}
 	stackedImages = {'r':[], 'g':[], 'b':[]}
+	""" Created a storage array for keeping the stacked images...
+	"""
+	for c in channelNames:
+		stackedImageStore = classes.stackedImage()
+		stackedImages[c] = stackedImageStore
+		
 	""" Run through all the frames in the .dat file.
 	"""
 	for frameIndex in range(1, frameRange + 1):
@@ -218,11 +228,13 @@ if __name__ == "__main__":
 		
 			singleChannelFrame = wholeFrame[channel]
 			assembledChannelFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
-			stackedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+			#stackedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+			stackedImageObject = stackedImages[channel]
 		
 			newObjects = []
 			for j in range(frameInfo.numWindows): 
 				windowImage = singleChannelFrame[j]
+				
 				tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, channel, windowImage)
 				catFilename = ultracamutils.runSex(tmpFilename)
 				newObjectsinWindow = ultracamutils.readSexObjects(catFilename)
@@ -239,7 +251,7 @@ if __name__ == "__main__":
 				ysize = frameInfo.getWindow(j).ysize 
 			
 				assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] = assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
-				stackedFrame[xll:xll+xsize, yll:yll+ysize] = stackedFrame[xll:xll+xsize, yll:yll+ysize] + windowImage
+				#stackedFrame[xll:xll+xsize, yll:yll+ysize] = stackedFrame[xll:xll+xsize, yll:yll+ysize] + windowImage
 
 				for o in newObjectsinWindow:
 					(windowX, windowY) = ( o['y'], o['x'] )
@@ -253,7 +265,11 @@ if __name__ == "__main__":
 		
 			allObjects[channel] = masterObjectList
 			channelTempCatalogs[channel] = prevCatalog
-			stackedImages[channel] = numpy.add(stackedImages[channel], stackedFrame)
+			#stackedImages[channel] = numpy.add(stackedImages[channel], stackedFrame)
+			
+			for j in range(frameInfo.numWindows):
+				windowImage = singleChannelFrame[j]
+				stackedImageObject.addNewData(windowImage)
 			
 			if arg.crop:
 				xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
@@ -292,7 +308,8 @@ if __name__ == "__main__":
 		runIdent = arg.runname
 		imageFilename = utils.addPaths(config.SITE_PATH,runIdent) + "_" + channel + ".png"
 		imgData = stackedImages[channel]
-		imgData = numpy.divide(imgData, frameIndex)
+		print imgData
+		#imgData = numpy.divide(imgData, frameIndex)
 		imgData = ultracamutils.percentiles(imgData, 20, 98)
 		imgSize = numpy.shape(imgData)
 		imgLength = imgSize[0] * imgSize[1]
@@ -311,7 +328,7 @@ if __name__ == "__main__":
 		
 			for m in masterObjectList:
 				allChannelObjects.append(m.toJSON())
-				print m
+				debug.write(m)
 		
 			runIdent = arg.runname
 		
