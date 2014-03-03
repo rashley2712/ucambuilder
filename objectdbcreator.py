@@ -217,7 +217,8 @@ if __name__ == "__main__":
 	for frameIndex in range(1, frameRange + 1):
 		trueFrameNumber = startFrame + frameIndex - 1
 		wholeFrame = getNextFrame()
-		debug.write("Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + "] MJD:" + str(wholeFrame['MJD']), level = 2)
+		completionPercent = int(float(frameIndex) / float(frameRange) * 100)
+		debug.write("Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " " + str(completionPercent) + "%] MJD:" + str(wholeFrame['MJD']), level = 2)
 		
 		for channel in channelNames:
 			if (channel == 'b') & (trueFrameNumber % rdat.nblue != 0):      # This is an empty blue frame so skip it
@@ -269,7 +270,7 @@ if __name__ == "__main__":
 			
 			for j in range(frameInfo.numWindows):
 				windowImage = singleChannelFrame[j]
-				stackedImageObject.addNewData(windowImage)
+				stackedImageObject.addNewData(windowImage, j)
 			
 			if arg.crop:
 				xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
@@ -307,10 +308,18 @@ if __name__ == "__main__":
 	for channel in channelNames:
 		runIdent = arg.runname
 		imageFilename = utils.addPaths(config.SITE_PATH,runIdent) + "_" + channel + ".png"
-		imgData = stackedImages[channel]
-		print imgData
-		#imgData = numpy.divide(imgData, frameIndex)
-		imgData = ultracamutils.percentiles(imgData, 20, 98)
+		stackedImage = stackedImages[channel]
+		fullImage =  numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+		for j in range(frameInfo.numWindows):
+			windowImage = stackedImage.getWindow(j)
+			xll = frameInfo.getWindow(j).xll 
+			yll = frameInfo.getWindow(j).yll 
+			xsize = frameInfo.getWindow(j).xsize 
+			ysize = frameInfo.getWindow(j).ysize 
+			fullImage[xll:xll+xsize, yll:yll+ysize] = fullImage[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+			
+		fullImage = numpy.fliplr(fullImage)
+		imgData = fullImage
 		imgSize = numpy.shape(imgData)
 		imgLength = imgSize[0] * imgSize[1]
 		testData = numpy.reshape(imgData, imgLength, order="F")

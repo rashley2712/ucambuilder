@@ -1,6 +1,7 @@
 import math, json, datetime
 import trm.ultracam
 import rashley_utils as utils
+import numpy
 
 class dayObject:
     """ This class stores metadata for a particular night's observing
@@ -163,6 +164,9 @@ class stackedImage:
 		self.windows.append(windowData)
 		self.exposuresCount.append(0)
 		self.numWindows+= 1
+		
+	def getWindow(self, index):
+		return self.windowImages[index]
 		
 	def addNewData(self, windowData, index):
 		originalImage = self.windowImages[index]
