@@ -10,7 +10,7 @@ from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import sys
 import ultracam_shift
-import time
+import time, datetime
 import json
 import Image,ImageDraw
 
@@ -212,13 +212,24 @@ if __name__ == "__main__":
 		stackedImageStore = classes.stackedImage()
 		stackedImages[c] = stackedImageStore
 		
+	startTime = datetime.datetime.now()
+	timeLeftString = "??:??"
 	""" Run through all the frames in the .dat file.
 	"""
 	for frameIndex in range(1, frameRange + 1):
+		currentTime = datetime.datetime.now()
 		trueFrameNumber = startFrame + frameIndex - 1
 		wholeFrame = getNextFrame()
-		completionPercent = int(float(frameIndex) / float(frameRange) * 100)
-		debug.write("Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " " + str(completionPercent) + "%] MJD:" + str(wholeFrame['MJD']), level = 2)
+		completionPercent = (float(frameIndex) / float(frameRange) * 100.)
+		if frameIndex>2:
+			timePassed = ultracamutils.timedeltaTotalSeconds(currentTime - startTime)
+			totalTime = timePassed * 100. / completionPercent
+			etaTime = startTime + datetime.timedelta(seconds = totalTime)
+			timeLeft = etaTime - currentTime
+			(hours, mins, secs) = ultracamutils.timedeltaHoursMinsSeconds(timeLeft)
+			timeLeftString = str(hours).zfill(2) + ":" + str(mins).zfill(2) + ":" + str(secs).zfill(2)
+			
+		debug.write(timeLeftString + " Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " %d"%(int(completionPercent)) + "%] MJD:" + "%5.7f"%(wholeFrame['MJD']), level = 2)
 		
 		for channel in channelNames:
 			if (channel == 'b') & (trueFrameNumber % rdat.nblue != 0):      # This is an empty blue frame so skip it

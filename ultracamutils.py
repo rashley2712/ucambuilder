@@ -294,3 +294,10 @@ def writePNG(image, filename, caption = ""):
     if (filename[-4:]!=".png"): filename+= ".png"
     imageCopy.save(filename, "PNG")
 	
+def timedeltaTotalSeconds(td):
+    return (td.microseconds + (td.seconds + td.days * 24 * 3600) * 10**6) / float(10**6)
+    
+def timedeltaHoursMinsSeconds(td):
+	hours, remainder = divmod(td.seconds, 3600)
+	minutes, seconds = divmod(remainder, 60)
+	return (hours, minutes, seconds)
