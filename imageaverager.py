@@ -8,7 +8,7 @@ import classes
 import rashley_utils as utils
 from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
-import sys
+import sys, subprocess
 import ultracam_shift
 import time, datetime
 import json
@@ -155,6 +155,7 @@ if __name__ == "__main__":
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib')
 	parser.add_argument('-r', '--crop', action='store_true', help='Crop the images in the preview windows to show only areas with exposed pixels')
+	parser.add_argument('-f', '--fits', action='store_true', help='Write individual frames to FITS files')
 	parser.add_argument('-g', '--png', action='store_true', help='Write PNG images of the preview to local disk')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
@@ -179,6 +180,10 @@ if __name__ == "__main__":
 	runFilename = utils.addPaths(config.ULTRACAMRAW, arg.runname)
 
 	debug.write("Opening the Ultracam raw file at: " + runFilename, level = 3)
+	
+	debug.write("Getting run info from the file:" + config.RUNINFO, level = 1)
+	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
+	
 	
 	if arg.preview: 
 		matplotlib.pyplot.ion()
@@ -212,6 +217,11 @@ if __name__ == "__main__":
 		stackedImageStore = classes.stackedImage()
 		stackedImages[c] = stackedImageStore
 		
+	if (arg.fits):
+		runDate = ultracamutils.separateRunNameAndDate(arg.runname)[0]
+		newFolder = utils.addPaths('/tmp', runDate)
+		subprocess.call(["mkdir", newFolder])
+	
 	startTime = datetime.datetime.now()
 	timeLeftString = "??:??"
 	""" Run through all the frames in the .dat file.
@@ -240,6 +250,7 @@ if __name__ == "__main__":
 		
 			singleChannelFrame = wholeFrame[channel]
 			assembledChannelFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+			assembledChannelFrameUnequalised = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 			#stackedFrame = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 			stackedImageObject = stackedImages[channel]
 		
@@ -263,6 +274,7 @@ if __name__ == "__main__":
 				ysize = frameInfo.getWindow(j).ysize 
 			
 				assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] = assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+				assembledChannelFrameUnequalised[xll:xll+xsize, yll:yll+ysize] = assembledChannelFrameUnequalised[xll:xll+xsize, yll:yll+ysize] + windowImage
 				#stackedFrame[xll:xll+xsize, yll:yll+ysize] = stackedFrame[xll:xll+xsize, yll:yll+ysize] + windowImage
 
 				for o in newObjectsinWindow:
@@ -287,6 +299,12 @@ if __name__ == "__main__":
 				xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
 				print "Cropping to:", xmin, xmax, ymin, ymax
 				assembledChannelFrame = assembledChannelFrame[xmin:xmax, ymin:ymax]
+
+			if arg.fits:
+				fitsFrame = numpy.flipud(numpy.rot90(assembledChannelFrameUnequalised))
+				runIdent = arg.runname
+				fitsFilename = "/tmp/" + runIdent + '_' + str(trueFrameNumber).zfill(5) + '_' + channel + '.fits'
+				ultracamutils.saveFITSImage(fitsFrame, fitsFilename)
 
 			if arg.preview:
 				# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation
@@ -317,6 +335,18 @@ if __name__ == "__main__":
 	""" Write a colour image
 	"""
 	rgbImage = {'r':[], 'g':[], 'b':[]}
+	
+	""" Initialise the colours with blank data """
+	blankImageData = numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+	blankImageSize = numpy.shape(blankImageData) 
+	blankImageLength = blankImageSize[0] * blankImageSize[1]
+	blankImage = Image.new("L", blankImageSize)
+	imageData = numpy.reshape(blankImageData, blankImageLength, order="F")
+	blankImage.putdata(imageData)
+	rgbImage['r'] = blankImage
+	rgbImage['g'] = blankImage
+	rgbImage['b'] = blankImage
+	
 	for channel in channelNames:
 		runIdent = arg.runname
 		imageFilename = utils.addPaths(config.SITE_PATH,runIdent) + "_" + channel + ".png"

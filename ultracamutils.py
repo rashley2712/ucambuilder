@@ -24,6 +24,29 @@ def readConfigFile(filename):
     configfile.close()
     return configuration
     
+def getRunInfo(filename, runIdent):
+	""" Loads some run info from the JSON file created by Tom Marsh. Places it into an object of class runInfoObject and returns the object
+	"""
+	JSONfile = open(filename, "r")
+	wholeFileString = JSONfile.read()
+
+	allObjectsJSON = json.loads(wholeFileString)
+
+	(runDate, runNumber) = separateRunNameAndDate(runIdent)
+	
+	print "Looking for run:", runNumber, " on ", runDate
+	runNumberStr = runNumber[3:]
+	runNumber = int(runNumberStr)
+	print runNumber
+	
+	for object in allObjectsJSON:
+		print object
+		data = json.loads(object)
+		print data['date']
+
+
+
+    
 def getRunMetaData(runName):
     """ Opens an Ultracam raw file and gets some metadata from it
     """
