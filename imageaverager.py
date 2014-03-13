@@ -184,6 +184,10 @@ if __name__ == "__main__":
 	debug.write("Getting run info from the file:" + config.RUNINFO, level = 1)
 	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
 	
+	debug.write("Run Info:\n----------------------", level = 2)
+	debug.write(runInfo, level = 2)
+	debug.write("----------------------", level = 2)
+	
 	
 	if arg.preview: 
 		matplotlib.pyplot.ion()
@@ -304,7 +308,7 @@ if __name__ == "__main__":
 				fitsFrame = numpy.flipud(numpy.rot90(assembledChannelFrameUnequalised))
 				runIdent = arg.runname
 				fitsFilename = "/tmp/" + runIdent + '_' + str(trueFrameNumber).zfill(5) + '_' + channel + '.fits'
-				ultracamutils.saveFITSImage(fitsFrame, fitsFilename)
+				ultracamutils.writeFITSwithRunHeaders(fitsFrame, fitsFilename, runInfo)
 
 			if arg.preview:
 				# Rotate the image 90 degrees just to make it appear in Matplotlib in the right orientation

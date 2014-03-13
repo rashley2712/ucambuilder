@@ -28,21 +28,23 @@ def getRunInfo(filename, runIdent):
 	""" Loads some run info from the JSON file created by Tom Marsh. Places it into an object of class runInfoObject and returns the object
 	"""
 	JSONfile = open(filename, "r")
-	wholeFileString = JSONfile.read()
 
-	allObjectsJSON = json.loads(wholeFileString)
+	allObjectsJSON = json.load(JSONfile)
 
 	(runDate, runNumber) = separateRunNameAndDate(runIdent)
+
+	run = classes.runObject(runDate, runNumber)
 	
-	print "Looking for run:", runNumber, " on ", runDate
 	runNumberStr = runNumber[3:]
 	runNumber = int(runNumberStr)
-	print runNumber
 	
 	for object in allObjectsJSON:
-		print object
-		data = json.loads(object)
-		print data['date']
+		date = object['night']
+		num = object['num']
+		if ((date == runDate) & (runNumber == num)):
+			run.updateRunInfo(object)
+			
+	return run
 
 
 
@@ -128,6 +130,35 @@ def saveFITSImage(imageData, filename):
     hdu = astropy.io.fits.PrimaryHDU(imageData)
     hdulist = astropy.io.fits.HDUList([hdu])
     hdulist.writeto(filename, clobber=True)
+    
+    
+def writeFITSwithRunHeaders(imageData, filename, runInfo):
+	
+	ra = runInfo.ra * 360./24.
+	dec = runInfo.dec
+	fieldScaleX = -8.3E-05
+	fieldScaleY = 8.3E-05
+	
+	prihdr = astropy.io.fits.Header()
+	prihdr['COMMENT'] = "This file created by  from the Ultracam pipeline."
+	prihdr['TARGET'] = runInfo.target
+	prihdr['COMMENT'] = runInfo.comment
+	prihdr['EQUINOX'] = 2000
+	prihdr['RADECSYS'] = "FK5"
+	prihdr['CTYPE1'] = "RA---TAN"
+	prihdr['CTYPE2'] = "DEC--TAN"
+	prihdr['CRPIX1'] = 512
+	prihdr['CRPIX2'] = 512
+	prihdr['CRVAL1'] = ra
+	prihdr['CRVAL2'] = dec
+	prihdr['CDELT1'] = fieldScaleX
+	prihdr['CDELT2'] = fieldScaleY
+	
+	hdu = astropy.io.fits.PrimaryHDU(imageData, header=prihdr)
+	hdulist = astropy.io.fits.HDUList([hdu])
+	hdulist.writeto(filename, clobber=True)
+
+	
 
 def removeTMPFile(filename):
     """ Removes a temporary file once sextractor has finished with it

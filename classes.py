@@ -37,10 +37,22 @@ class runObject:
 			self.numFrames = 0
 		self.runClass = 0
 		self.comment = ""
+		self.ra = 0
+		self.dec = 0
+		self.objectID = "?"
+		self.target = "?"
+		
+	def updateRunInfo(self, object):
+		self.comment = object['comment']
+		self.ra = object['ra']
+		self.dec = object['dec']
+		self.objectId = object['id']
+		self.target = object['target']
 		
 		
 	def __str__(self):
 		outStr = "RunName: " + self.runName + "\n"
+		outStr+= "Target: " + self.target + " RA:" + str(self.ra) + " DEC: " + str(self.dec) + "\n"
 		outStr+= "Frames: " + str(self.numFrames) + "\n"
 		outStr+= "Mode: " + self.mode + "\n"
 		outStr+= "nBlue: " + str(self.nblue) + "\n"
