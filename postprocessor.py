@@ -1,57 +1,114 @@
 #!/usr/bin/env python
-import rashley_utils as utils
+import ultracamutils
 import sys, subprocess, re, json
 import classes, numpy as np
 import astropy.io.fits
-
+import argparse
 	
 if (__name__ == "__main__"):
+	parser = argparse.ArgumentParser(description='Reads the files produced by earlier steps in the pipeline.')
+	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
+	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
+	parser.add_argument('--xyls', action='store_true', help='Create an XY-list for each channel. Used by Astrometry.net')
+	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
+	arg = parser.parse_args()
 	
-	config = utils.readConfigFile()
+	config = ultracamutils.readConfigFile(arg.configfile)
 	debug = classes.debugObject(config.DEBUG)
-
-	if (len(sys.argv) < 2):
-		print "Please give me a run name."
-		sys.exit()
+	debug.toggleTimeLog()
+	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
 	
 	runName = sys.argv[1]
 	
-	redFilename = utils.addPaths(config.SITE_PATH, runName) + "r.json"	
-	redObjects = utils.buildObjectsFromJSON(redFilename)
+	redFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_r.json"	
+	redObjects = ultracamutils.buildObjectsFromJSON(redFilename)
 	
-	greenFilename = utils.addPaths(config.SITE_PATH, runName) + "g.json"
-	greenObjects = utils.buildObjectsFromJSON(greenFilename)
+	greenFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_g.json"
+	greenObjects = ultracamutils.buildObjectsFromJSON(greenFilename)
 	
-	blueFilename = utils.addPaths(config.SITE_PATH, runName) + "b.json"
-	blueObjects = utils.buildObjectsFromJSON(blueFilename)
+	blueFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_b.json"
+	blueObjects = ultracamutils.buildObjectsFromJSON(blueFilename)
+	
+	totalRedObjects = len(redObjects)
+	totalGreenObjects = len(greenObjects)
+	totalBlueObjects = len(blueObjects)
 		
-	redObjects = utils.filterOutCosmicRays(redObjects)
-	greenObjects = utils.filterOutCosmicRays(greenObjects)
-	blueObjects = utils.filterOutCosmicRays(blueObjects)
+	redObjects = ultracamutils.filterOutCosmicRays(redObjects)
+	greenObjects = ultracamutils.filterOutCosmicRays(greenObjects)
+	blueObjects = ultracamutils.filterOutCosmicRays(blueObjects)
 
-	redObjects = utils.filterOutLowFrameCountObjects(redObjects, 10)
-	greenObjects = utils.filterOutLowFrameCountObjects(greenObjects, 10)
-	blueObjects = utils.filterOutLowFrameCountObjects(blueObjects, 10)
+	redObjects = ultracamutils.filterOutLowFrameCountObjects(redObjects, 50)
+	greenObjects = ultracamutils.filterOutLowFrameCountObjects(greenObjects, 50)
+	blueObjects = ultracamutils.filterOutLowFrameCountObjects(blueObjects, 50)
 	
-	debug.write("%d red objects after cosmic ray and low frames filtering"%(len(redObjects)))
-	debug.write("%d green objects after cosmic ray and low frames filtering"%(len(greenObjects)))
-	debug.write("%d blue objects after cosmic ray and low frames filtering"%(len(blueObjects)))
+	debug.write("%d red objects after cosmic ray and low frames filtering, was %d"%(len(redObjects), totalRedObjects), level = 2)
+	debug.write("%d green objects after cosmic ray and low frames filtering, was %d"%(len(greenObjects), totalGreenObjects), level = 2)
+	debug.write("%d blue objects after cosmic ray and low frames filtering, was %d"%(len(blueObjects), totalBlueObjects), level = 2)
 
 	print "Timing check red"
-	redObjects = utils.filterOutBadTimingFrames(redObjects)
+	redObjects = ultracamutils.filterOutBadTimingFrames(redObjects)
 	print "Timing check green"
-	greenObjects = utils.filterOutBadTimingFrames(greenObjects)
+	greenObjects = ultracamutils.filterOutBadTimingFrames(greenObjects)
 	print "Timing check blue"
-	blueObjects = utils.filterOutBadTimingFrames(blueObjects)
+	blueObjects = ultracamutils.filterOutBadTimingFrames(blueObjects)
+	
 	
 		
 	for i in redObjects:
 		meanPosition = i.calculateMeanPosition()
+		meanFlux = i.calculateMeanFlux()
 	for i in greenObjects:
 		meanPosition = i.calculateMeanPosition()
+		meanFlux = i.calculateMeanFlux()
 	for i in blueObjects:
 		meanPosition = i.calculateMeanPosition()
+		meanFlux = i.calculateMeanFlux()
 	
+	if (arg.xyls):
+		channelNames = ['r','g','b']
+		debug.write("Creating an XYLS file")
+		
+		sortedObjects = sorted(blueObjects, key= lambda p: p.meanFlux, reverse=True)
+		x_values, IDs, y_values, fluxes = [], [], [], []
+		
+		totalObjects = len(sortedObjects)
+		if totalObjects<10:
+			outputLength = totalObjects
+		elif totalObjects<20:
+			outputLength = totalObjects * 0.5
+		elif totalObjects<50:
+			outputLength = totalObjects * 0.3
+		else:
+			outputLength = totalObjects * 0.1
+		outputLength = int(outputLength)
+		
+		for num, i in enumerate(sortedObjects):
+			IDs.append(i.id)
+			x_values.append(i.meanPosition[0])
+			y_values.append(i.meanPosition[1])
+			fluxes.append(i.meanFlux)
+			if num==outputLength: break;
+
+		print fluxes
+
+		FITSFilename = "test_blue.xyls"
+		debug.write("Writing FITS file: " + FITSFilename, level=1)
+	
+		col1 = astropy.io.fits.Column(name='ID', format='I', array=IDs)
+		col2 = astropy.io.fits.Column(name='X', format='E', array=x_values)
+		col3 = astropy.io.fits.Column(name='Y', format='E', array=y_values)
+		col4 = astropy.io.fits.Column(name='FLUX', format='E', array=fluxes)
+		cols = astropy.io.fits.ColDefs([col1, col2, col3, col4])	
+		tbhdu =astropy.io.fits.new_table(cols)
+	
+		prihdr = astropy.io.fits.Header()
+		prihdr['COMMENT'] = "This file created by postprocessor.py from the Ultracam pipeline."
+		prihdu = astropy.io.fits.PrimaryHDU(header=prihdr)
+		thdulist = astropy.io.fits.HDUList([prihdu, tbhdu])
+		thdulist.writeto(FITSFilename, clobber=True)
+
+
+
 	""" For each object in the red channel try to find a match in the other two channels
 	"""
 	
@@ -60,21 +117,21 @@ if (__name__ == "__main__"):
 	colourObjectList = []
 	
 	for object in redObjects:
-		debug.write(str(object), level=2)
+		debug.write(str(object))
 		meanPosition = object.meanPosition
 		debug.write("Mean position: " + str(meanPosition))
-		newIDNumber = utils.getUniqueID(colourObjectList)
+		newIDNumber = ultracamutils.getUniqueID(colourObjectList)
 		colourObject = classes.combined3ColourObject(newIDNumber)
 		colourObject.setRedObject(object)
 
 		smallestDistance = 1000
 		nearestObject = greenObjects[0]
 		for g in greenObjects:
-			distance = utils.measureDistance(g.meanPosition, meanPosition)
+			distance = ultracamutils.measureDistance(g.meanPosition, meanPosition)
 			if distance < smallestDistance: 
 				smallestDistance = distance
 				nearestObject = g
-		debug.write("Most likely match is %s at a distance of %f"%(str(nearestObject),smallestDistance), level=2)
+		debug.write("Most likely match is %s at a distance of %f"%(str(nearestObject),smallestDistance), level=3)
 		if (smallestDistance>float(config.MINPIXELDISTANCE)):
 			debug.write("Match rejected... too far apart!")
 		else: 
@@ -83,11 +140,11 @@ if (__name__ == "__main__"):
 		smallestDistance = 1000
 		nearestObject = blueObjects[0]
 		for b in blueObjects:
-			distance = utils.measureDistance(b.meanPosition, meanPosition)
+			distance = ultracamutils.measureDistance(b.meanPosition, meanPosition)
 			if distance < smallestDistance: 
 				smallestDistance = distance
 				nearestObject = b
-		debug.write("Most likely match is %s at a distance of %f"%(str(nearestObject),smallestDistance), level=2)
+		debug.write("Most likely match is %s at a distance of %f"%(str(nearestObject),smallestDistance), level=3)
 		if (smallestDistance>float(config.MINPIXELDISTANCE)):
 			debug.write("Match rejected... too far apart!")
 		else:
@@ -99,12 +156,12 @@ if (__name__ == "__main__"):
 if (int(config.WRITE_JSON)==1):
 	allObjects = []
 	for c in colourObjectList:
-		debug.write(str(c), level = 1)
+		#debug.write(str(c), level = 1)
 		allObjects.append(c.toJSON())
 
-	outputFilename = utils.addPaths(config.SITE_PATH,runName) 
-	outputFilename+= "rgb.json"
-	debug.write("Writing master JSON file: " + outputFilename)
+	outputFilename = ultracamutils.addPaths(config.SITE_PATH,runName) 
+	outputFilename+= "_rgb.json"
+	debug.write("Writing master JSON file: " + outputFilename, level = 2)
 
 	outputfile = open( outputFilename, "w" )
 	json.dump(allObjects, outputfile)
@@ -115,9 +172,9 @@ if (int(config.WRITE_JSON)==1):
 	for m in redObjects:
 		allObjects.append(m.toJSON())
 	
-	outputFilename = utils.addPaths(config.SITE_PATH,runName) 
-	outputFilename+= "r.json"
-	debug.write("Writing red JSON file: " + outputFilename)
+	outputFilename = ultracamutils.addPaths(config.SITE_PATH,runName) 
+	outputFilename+= "_r.json"
+	debug.write("Writing red JSON file: " + outputFilename, level = 2)
 	
 	outputfile = open( outputFilename, "w" )
 	json.dump(allObjects, outputfile)
@@ -128,9 +185,9 @@ if (int(config.WRITE_JSON)==1):
 	for m in greenObjects:
 		allObjects.append(m.toJSON())
 	
-	outputFilename = utils.addPaths(config.SITE_PATH,runName) 
-	outputFilename+= "g.json"
-	debug.write("Writing green JSON file: " + outputFilename)
+	outputFilename = ultracamutils.addPaths(config.SITE_PATH,runName) 
+	outputFilename+= "_g.json"
+	debug.write("Writing green JSON file: " + outputFilename, level = 2)
 	
 	outputfile = open( outputFilename, "w" )
 	json.dump(allObjects, outputfile)
@@ -140,9 +197,9 @@ if (int(config.WRITE_JSON)==1):
 	for m in blueObjects:
 		allObjects.append(m.toJSON())
 	
-	outputFilename = utils.addPaths(config.SITE_PATH,runName) 
-	outputFilename+= "b.json"
-	debug.write("Writing blue JSON file: " + outputFilename)
+	outputFilename = ultracamutils.addPaths(config.SITE_PATH,runName) 
+	outputFilename+= "_b.json"
+	debug.write("Writing blue JSON file: " + outputFilename, level = 2)
 	
 	outputfile = open( outputFilename, "w" )
 	json.dump(allObjects, outputfile)

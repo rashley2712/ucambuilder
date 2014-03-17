@@ -395,7 +395,7 @@ if __name__ == "__main__":
 		fullImage = numpy.rot90(fullImage)
 		fullImage = numpy.flipud(fullImage)
 		debug.write("Writing FITS file: " + imageFilename, level=2)
-		ultracamutils.saveFITSImage(fullImage, imageFilename)
+		ultracamutils.writeFITSwithRunHeaders(fullImage, imageFilename, runInfo)
 
 
 

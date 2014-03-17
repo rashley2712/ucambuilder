@@ -298,6 +298,7 @@ class ObservedObject:
 		self.exposures = []         # An array containing numExposures exposure objects
 		self.currentPosition = (0,0) # The object's last known x, y position
 		self.lastCounts = 0
+		self.meanFlux = 0
 		
 	def addExposure(self, x, y, counts, FWHM, MJD, exposureTime):
 		""" Adds a new exposure object to this object
@@ -323,6 +324,18 @@ class ObservedObject:
 		print "Removing exposure at frame: ", index
 		self.numExposures-= 1
 		
+	def calculateMeanFlux(self):
+		meanFlux = 0
+		for i in range(self.numExposures):
+			flux = self.exposures[i].counts
+			meanFlux += flux
+		meanFlux /= self.numExposures
+		
+		self.meanFlux = meanFlux
+		
+		return self.meanFlux
+
+
 	def calculateMeanPosition(self):
 		(mx, my) = (0, 0)
 		for i in range(self.numExposures):

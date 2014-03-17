@@ -91,8 +91,6 @@ def measureDistance(p1, p2):
 def buildObjectsFromJSON(filename):
 	""" Reads a JSON file and re-constructs the object list... returns it as an array
 	"""
-	config = readConfigFile()
-	debug = classes.debugObject(config.DEBUG)
 	JSONfile = open(filename, "r")
 
 	wholeFileString = JSONfile.read()
@@ -106,11 +104,9 @@ def buildObjectsFromJSON(filename):
 		# Create a new instance of ObservedObject for this object 
 		newObject = classes.ObservedObject(ob['id'])
 		newObject.currentPosition = (ob['x'], ob['y'])
-		debug.write("ID: %d (%d, %d)"%(ob['id'], int(ob['x']), int(ob['y'])))
 		dataArray = ob['data']
 		for data in dataArray:
 			newObject.addExposure(data[2],data[3], data[1], 0, data[0], 0)
-			debug.write(data)
 		objects.append(newObject)
 		
 	return objects
@@ -230,7 +226,7 @@ def filterOutLowFrameCountObjects(objects, percentage):
 		if (i.numExposures>maxFrames): maxFrames = i.numExposures;
 	
 	filteredObjects = []
-	threshold = maxFrames * percentage/100
+	threshold = maxFrames * percentage/100.
 	for i in objects:
 		if i.numExposures>=threshold: filteredObjects.append(i)
 		
@@ -249,13 +245,7 @@ def filterOutBadTimingFrames(objects):
 		for f, frame in enumerate(o.exposures):
 			time = frame.MJD
 			difference = time - startTime
-			print("MJD: " + str(frame.MJD) + " [" + str(f) +"] Time difference: " + str(difference))
-			if (time<startTime): 
-				print "We need to remove this exposure"
-			elif (time>endTime): 
-				print "We need to remove this exposure"
-			else:
-				print "This exposure is ok"
+			if (time>startTime) and (time<endTime): 
 				newExposures.append(frame)
 						
 		o.resetExposures(newExposures)

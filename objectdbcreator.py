@@ -180,6 +180,13 @@ if __name__ == "__main__":
 
 	debug.write("Opening the Ultracam raw file at: " + runFilename, level = 3)
 	
+	debug.write("Getting run info from the file:" + config.RUNINFO, level = 1)
+	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
+	
+	debug.write("Run Info:\n----------------------", level = 2)
+	debug.write(runInfo, level = 2)
+	debug.write("----------------------", level = 2)
+	
 	if arg.preview: 
 		matplotlib.pyplot.ion()
 		fig = matplotlib.pyplot.gcf()
@@ -353,7 +360,7 @@ if __name__ == "__main__":
 			runIdent = arg.runname
 		
 			outputFilename = utils.addPaths(config.SITE_PATH,runIdent) 
-			outputFilename+= channel + ".json"
+			outputFilename+= "_" + channel + ".json"
 			debug.write("Writing JSON file: " + outputFilename)
 	
 			outputfile = open( outputFilename, "w" )
