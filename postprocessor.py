@@ -75,9 +75,11 @@ if (__name__ == "__main__"):
 		if totalObjects<10:
 			outputLength = totalObjects
 		elif totalObjects<20:
-			outputLength = totalObjects * 0.5
+			outputLength = totalObjects * 0.8
 		elif totalObjects<50:
-			outputLength = totalObjects * 0.3
+			outputLength = totalObjects * 0.7
+		elif totalObjects<100:
+			outputLength = totalObjects * 0.5
 		else:
 			outputLength = totalObjects * 0.1
 		outputLength = int(outputLength)
