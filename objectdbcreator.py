@@ -236,7 +236,7 @@ if __name__ == "__main__":
 			(hours, mins, secs) = ultracamutils.timedeltaHoursMinsSeconds(timeLeft)
 			timeLeftString = str(hours).zfill(2) + ":" + str(mins).zfill(2) + ":" + str(secs).zfill(2)
 			
-		debug.write(timeLeftString + " Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " %d"%(int(completionPercent)) + "%] MJD:" + "%5.7f"%(wholeFrame['MJD']), level = 2)
+		debug.write(timeLeftString + " Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " %d"%(int(completionPercent)) + "%] MJD:" + "%5.7f"%(wholeFrame['MJD'] ) + '\r', level = 2)
 		
 		for channel in channelNames:
 			if (channel == 'b') & (trueFrameNumber % rdat.nblue != 0):      # This is an empty blue frame so skip it

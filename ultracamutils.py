@@ -130,7 +130,7 @@ def saveFITSImage(imageData, filename):
     
 def writeFITSwithRunHeaders(imageData, filename, runInfo):
 	
-	ra = runInfo.ra * 360./24.
+	ra = runInfo.ra * 15.  # Convert RA to degrees
 	dec = runInfo.dec
 	fieldScaleX = -8.3E-05
 	fieldScaleY = 8.3E-05
@@ -260,6 +260,7 @@ def rejectBadObjects(objects):
     for ob in objects:
       if (ob['flags'] == 4): filteredObjects.append(ob)
       if (ob['flags'] == 0): filteredObjects.append(ob)
+      if (ob['flags'] == 2): filteredObjects.append(ob)
     return filteredObjects
 
 def getTopObjects(objectList, num):
