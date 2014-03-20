@@ -30,8 +30,7 @@ if __name__ == "__main__":
 		exit()
 
 	outputFilename = arg.output
-	
-	debug = classes.debugObject(arg.debuglevel)
+
 	
 	""" Load the PNG image first
 	"""
@@ -44,6 +43,7 @@ if __name__ == "__main__":
 	#imageData = ultracamutils.percentiles(imageData, 50, 90)
 	imageData = numpy.flipud(imageData)
 	imgplot = matplotlib.pyplot.imshow(imageData, cmap="gray")
+	matplotlib.pyplot.gca().invert_yaxis()
 
 	""" Load the catalog file
 	"""

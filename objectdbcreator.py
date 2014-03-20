@@ -235,8 +235,13 @@ if __name__ == "__main__":
 			timeLeft = etaTime - currentTime
 			(hours, mins, secs) = ultracamutils.timedeltaHoursMinsSeconds(timeLeft)
 			timeLeftString = str(hours).zfill(2) + ":" + str(mins).zfill(2) + ":" + str(secs).zfill(2)
-			
-		debug.write(timeLeftString + " Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " %d"%(int(completionPercent)) + "%] MJD:" + "%5.7f"%(wholeFrame['MJD'] ) + '\r', level = 2)
+		
+		
+		trackingObjectString = ""
+		for c in channelNames:
+			trackingObjectString+= " " + c + ":" + str(len(allObjects[c]))
+		trackingObjectString+= " "
+		debug.write(timeLeftString + " Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " %d"%(int(completionPercent)) + "%] MJD:" + "%5.7f"%(wholeFrame['MJD'] ) + trackingObjectString + '\r', level = 2)
 		
 		for channel in channelNames:
 			if (channel == 'b') & (trueFrameNumber % rdat.nblue != 0):      # This is an empty blue frame so skip it
@@ -343,12 +348,14 @@ if __name__ == "__main__":
 		testData = numpy.reshape(imgData, imgLength, order="F")
 		img = Image.new("L", imgSize)
 		img.putdata(testData)
-		debug.write("Writing PNG file: " + imageFilename) 
+		debug.write("Writing PNG file: " + imageFilename, level = 2) 
 		img.save(imageFilename, "PNG")
 
 		
 	if (int(config.WRITE_JSON)==1):
 
+		""" First write the raw json files for each channel
+		"""
 		for channel in channelNames:
 			masterObjectList = allObjects[channel]
 			allChannelObjects = []
@@ -360,9 +367,23 @@ if __name__ == "__main__":
 			runIdent = arg.runname
 		
 			outputFilename = utils.addPaths(config.SITE_PATH,runIdent) 
-			outputFilename+= "_" + channel + ".json"
+			outputFilename+= "_" + channel + "_raw.json"
 			debug.write("Writing JSON file: " + outputFilename)
 	
 			outputfile = open( outputFilename, "w" )
 			json.dump(allChannelObjects, outputfile)
 			outputfile.close()
+
+		""" Now write out some meta-data on the run, such as window dimensions, etc
+		"""
+		outputFilename = utils.addPaths(config.SITE_PATH,runIdent) 
+		outputFilename+= "_info.json"
+		outputData = {}
+		outputData['Target'] = runInfo.target
+		xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
+		outputData['numWindows'] = frameInfo.numWindowsh
+		outputData['maxExtents'] = [xmin, xmax, ymin, ymax]
+		
+		outputfile = open( outputFilename, "w" )
+		json.dump(outputData, outputfile)
+		outputfile.close()

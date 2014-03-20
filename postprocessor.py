@@ -18,96 +18,118 @@ if (__name__ == "__main__"):
 	debug.toggleTimeLog()
 	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
 	
-	runName = sys.argv[1]
-	
-	redFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_r.json"	
-	redObjects = ultracamutils.buildObjectsFromJSON(redFilename)
-	
-	greenFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_g.json"
-	greenObjects = ultracamutils.buildObjectsFromJSON(greenFilename)
-	
-	blueFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_b.json"
-	blueObjects = ultracamutils.buildObjectsFromJSON(blueFilename)
-	
-	totalRedObjects = len(redObjects)
-	totalGreenObjects = len(greenObjects)
-	totalBlueObjects = len(blueObjects)
-		
-	redObjects = ultracamutils.filterOutCosmicRays(redObjects)
-	greenObjects = ultracamutils.filterOutCosmicRays(greenObjects)
-	blueObjects = ultracamutils.filterOutCosmicRays(blueObjects)
+	runName = arg.runname
 
-	redObjects = ultracamutils.filterOutLowFrameCountObjects(redObjects, 50)
-	greenObjects = ultracamutils.filterOutLowFrameCountObjects(greenObjects, 50)
-	blueObjects = ultracamutils.filterOutLowFrameCountObjects(blueObjects, 50)
+	debug = classes.debugObject(arg.debuglevel)
+	debug.write("Getting run info from the file:" + config.RUNINFO, level = 2)
+	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
 	
-	debug.write("%d red objects after cosmic ray and low frames filtering, was %d"%(len(redObjects), totalRedObjects), level = 2)
-	debug.write("%d green objects after cosmic ray and low frames filtering, was %d"%(len(greenObjects), totalGreenObjects), level = 2)
-	debug.write("%d blue objects after cosmic ray and low frames filtering, was %d"%(len(blueObjects), totalBlueObjects), level = 2)
+	debug.write("Run Info:\n----------------------", level = 2)
+	debug.write(runInfo, level = 2)
+	debug.write("----------------------", level = 2)
 
-	print "Timing check red"
-	redObjects = ultracamutils.filterOutBadTimingFrames(redObjects)
-	print "Timing check green"
-	greenObjects = ultracamutils.filterOutBadTimingFrames(greenObjects)
-	print "Timing check blue"
-	blueObjects = ultracamutils.filterOutBadTimingFrames(blueObjects)
+	channels = ['r', 'g', 'b']
+	channelDescriptions = {'r': "Red", 'g': "Green", 'b': "Blue"}
+	allObjects = {'r': [], 'g':[], 'b':[]}
+	
+	""" Load the objects from the .json files.... channel by channel (r, g, b)
+	"""
+	for c in channels:
+		debug.write("Loading the json file for the %s objects."%(channelDescriptions[c]), level = 2)
+		jsonFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_" + c + "_raw.json"	
+		objects = ultracamutils.buildObjectsFromJSON(jsonFilename)
+		allObjects[c] = objects
+		debug.write("%d %s objects loaded."%(len(allObjects[c]), channelDescriptions[c]), level = 2)
 	
 	
+	""" Do some filtering of the objects
+	"""
+	for c in channels:
+			objects = allObjects[c]
+			beforeCount = len(objects)
+			objects = ultracamutils.filterOutCosmicRays(objects)
+			allObjects[c] = objects
+			debug.write("%d %s objects (was...%d) after cosmic ray filtering"%(len(allObjects[c]), channelDescriptions[c], beforeCount))
+	
+	percentThreshold = 20
+	for c in channels:
+			objects = allObjects[c]
+			beforeCount = len(objects)
+			objects = ultracamutils.filterOutLowFrameCountObjects(objects, percentThreshold)
+			allObjects[c] = objects
+			debug.write("%d %s objects (was...%d) after removing objects that appear on fewer than %d%% of the frames"%(len(allObjects[c]), channelDescriptions[c], beforeCount, percentThreshold))
+	 
+	pixelThreshold = 1.
+	for c in channels:
+			objects = allObjects[c]
+			beforeCount = len(objects)
+			for o in objects:
+				meanFWHM = o.calculateMeanFWHM()
+			objects = ultracamutils.filterOutPixels(objects, pixelThreshold)
+			allObjects[c] = objects
+			debug.write("%d %s objects (was...%d) after removing objects that have a pixel size smaller than %d."%(len(allObjects[c]), channelDescriptions[c], beforeCount, pixelThreshold))
+
+	""" Perform the timing checks
 		
-	for i in redObjects:
-		meanPosition = i.calculateMeanPosition()
-		meanFlux = i.calculateMeanFlux()
-	for i in greenObjects:
-		meanPosition = i.calculateMeanPosition()
-		meanFlux = i.calculateMeanFlux()
-	for i in blueObjects:
-		meanPosition = i.calculateMeanPosition()
-		meanFlux = i.calculateMeanFlux()
+	for c in channels:
+		debug.write("Timing check %s"%(channelDescriptions[c]))
+		objects = allObjects[c]
+		objects = ultracamutils.filterOutBadTimingFrames(objects)
+		allObjects[c] = objects
+	"""
+	
+	
+	""" Perform some calculations on the objects themselves to get meanFlux and meanPosition for each one
+	"""
+	for c in channels:
+		objects = allObjects[c]
+		for i in objects:
+			meanPosition = i.calculateMeanPosition()
+			meanFlux = i.calculateMeanFlux()
+			meanFWHM = i.calculateMeanFWHM()
+			print i
 	
 	if (arg.xyls):
-		channelNames = ['r','g','b']
-		debug.write("Creating an XYLS file")
+		for c in channels:
+			debug.write("Creating an XYLS file for the %s channel"%(channelDescriptions[c]))
+			objects = allObjects[c]
+			sortedObjects = sorted(objects, key= lambda p:p.meanFlux, reverse=True)
+			x_values, IDs, y_values, fluxes = [], [], [], []
 		
-		sortedObjects = sorted(blueObjects, key= lambda p: p.meanFlux, reverse=True)
-		x_values, IDs, y_values, fluxes = [], [], [], []
-		
-		totalObjects = len(sortedObjects)
-		if totalObjects<10:
-			outputLength = totalObjects
-		elif totalObjects<20:
-			outputLength = totalObjects * 0.8
-		elif totalObjects<50:
-			outputLength = totalObjects * 0.7
-		elif totalObjects<100:
-			outputLength = totalObjects * 0.5
-		else:
-			outputLength = totalObjects * 0.1
-		outputLength = int(outputLength)
-		
-		for num, i in enumerate(sortedObjects):
-			IDs.append(i.id)
-			x_values.append(i.meanPosition[0])
-			y_values.append(i.meanPosition[1])
-			fluxes.append(i.meanFlux)
-			if num==outputLength: break;
+			maxFlux = sortedObjects[1].meanFlux
+			fluxThreshold = maxFlux/1000.
+			print "Max flux:", maxFlux, "Theshold:", fluxThreshold
+			
+			for num, i in enumerate(sortedObjects):
+				if i.meanFlux<fluxThreshold: break;
+				IDs.append(i.id)
+				x_values.append(i.meanPosition[0])
+				y_values.append(i.meanPosition[1])
+				fluxes.append(i.meanFlux)
 
-		print fluxes
+			print fluxes
 
-		FITSFilename = "test_blue.xyls"
-		debug.write("Writing FITS file: " + FITSFilename, level=1)
+			runDate, runNumber = ultracamutils.separateRunNameAndDate(arg.runname)
+			FITSFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname) + "_" + c + ".xyls"
+			debug.write("Writing FITS file: " + FITSFilename, level=1)
 	
-		col1 = astropy.io.fits.Column(name='ID', format='I', array=IDs)
-		col2 = astropy.io.fits.Column(name='X', format='E', array=x_values)
-		col3 = astropy.io.fits.Column(name='Y', format='E', array=y_values)
-		col4 = astropy.io.fits.Column(name='FLUX', format='E', array=fluxes)
-		cols = astropy.io.fits.ColDefs([col1, col2, col3, col4])	
-		tbhdu =astropy.io.fits.new_table(cols)
+			col1 = astropy.io.fits.Column(name='ID', format='I', array=IDs)
+			col2 = astropy.io.fits.Column(name='X', format='E', array=x_values)
+			col3 = astropy.io.fits.Column(name='Y', format='E', array=y_values)
+			col4 = astropy.io.fits.Column(name='FLUX', format='E', array=fluxes)
+			cols = astropy.io.fits.ColDefs([col1, col2, col3, col4])	
+			tbhdu =astropy.io.fits.new_table(cols)
 	
-		prihdr = astropy.io.fits.Header()
-		prihdr['COMMENT'] = "This file created by postprocessor.py from the Ultracam pipeline."
-		prihdu = astropy.io.fits.PrimaryHDU(header=prihdr)
-		thdulist = astropy.io.fits.HDUList([prihdu, tbhdu])
-		thdulist.writeto(FITSFilename, clobber=True)
+			prihdr = astropy.io.fits.Header()
+			prihdr['TARGET'] = runInfo.target
+			prihdr['RA'] = runInfo.ra * 15.
+			prihdr['DEC'] = runInfo.dec
+			prihdr['COMMENT'] = "This file created by postprocessor.py from the Ultracam pipeline."
+			prihdr['RUNIDENT'] = arg.runname
+			prihdr['CHANNEL'] = channelDescriptions[c]
+			prihdu = astropy.io.fits.PrimaryHDU(header=prihdr)
+			thdulist = astropy.io.fits.HDUList([prihdu, tbhdu])
+			thdulist.writeto(FITSFilename, clobber=True)
 
 
 

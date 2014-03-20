@@ -299,6 +299,7 @@ class ObservedObject:
 		self.currentPosition = (0,0) # The object's last known x, y position
 		self.lastCounts = 0
 		self.meanFlux = 0
+		self.meanFWHM = 0
 		
 	def addExposure(self, x, y, counts, FWHM, MJD, exposureTime):
 		""" Adds a new exposure object to this object
@@ -334,6 +335,17 @@ class ObservedObject:
 		self.meanFlux = meanFlux
 		
 		return self.meanFlux
+
+	def calculateMeanFWHM(self):
+		meanFWHM = 0
+		for i in range(self.numExposures):
+			fwhm = self.exposures[i].FWHM
+			meanFWHM += fwhm
+		meanFWHM /= self.numExposures
+		
+		self.meanFWHM = meanFWHM
+		
+		return self.meanFWHM
 
 
 	def calculateMeanPosition(self):
@@ -397,9 +409,9 @@ class ObservedObject:
 		""" Returns a nicely formatted description of this object (for debug purposes)
 		"""
 		out = ""
-		out += "ID: " + str(self.id) + " (" + str(self.currentPosition[0]) + ", " \
-				 + str(self.currentPosition[1]) + ") frames: " + str(self.numExposures) + \
-				"   last counts:" + str(self.exposures[-1].counts)
+		out += "ID: " + str(self.id) + " (%.f,%.f)[%.2f]"%(self.currentPosition[0], self.currentPosition[1], self.meanFWHM)\
+		        + " frames: " + str(self.numExposures) + \
+				" mean counts: %.2f"%(self.meanFlux)
 		return out
 		
 	def toJSON(self):
@@ -409,7 +421,7 @@ class ObservedObject:
 		testObject['y'] = self.currentPosition[1]
 		exposureDataArray = []
 		for c in self.exposures:
-			exposureData = (c.MJD, float(c.counts), c.centroid[0], c.centroid[1])
+			exposureData = (c.MJD, float(c.counts), c.centroid[0], c.centroid[1], float(c.FWHM))
 			exposureDataArray.append(exposureData)
 		testObject['data'] = exposureDataArray
 		return json.dumps(testObject)

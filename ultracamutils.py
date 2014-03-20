@@ -46,8 +46,6 @@ def getRunInfo(filename, runIdent):
 			
 	return run
 
-
-
     
 def getRunMetaData(runName):
     """ Opens an Ultracam raw file and gets some metadata from it
@@ -106,8 +104,10 @@ def buildObjectsFromJSON(filename):
 		newObject.currentPosition = (ob['x'], ob['y'])
 		dataArray = ob['data']
 		for data in dataArray:
-			newObject.addExposure(data[2],data[3], data[1], 0, data[0], 0)
+			newObject.addExposure(data[2],data[3], data[1], data[4], data[0], 0)
 		objects.append(newObject)
+	
+	JSONfile.close()
 		
 	return objects
 	
@@ -217,6 +217,17 @@ def filterOutCosmicRays(objects):
 			filteredList.append(i)
 	
 	return filteredList
+
+def filterOutPixels(objects, pixelThreshold):
+	""" Returns a reduced list of objects with the 'single pixel' objects
+	"""
+	filteredList = []
+	for i in objects:
+		if i.meanFWHM > pixelThreshold:
+			filteredList.append(i)
+	
+	return filteredList
+
 		
 def filterOutLowFrameCountObjects(objects, percentage):
 	""" For a given list of objects, filters out those objects that do not appear on > percentage of frames
