@@ -30,20 +30,12 @@ if __name__ == "__main__":
 		exit()
 
 	outputFilename = arg.output
-
 	
 	""" Load the PNG image first
 	"""
-	#imageHDUList = astropy.io.fits.open(fitsFilename)
-	#imageData = imageHDUList[0].data
-	#imageHDUList.close()
 
-	imageData=matplotlib.image.imread(imageFilename)
-
-	#imageData = ultracamutils.percentiles(imageData, 50, 90)
-	imageData = numpy.flipud(imageData)
-	imgplot = matplotlib.pyplot.imshow(imageData, cmap="gray")
-	matplotlib.pyplot.gca().invert_yaxis()
+	image = Image.open(imageFilename)
+	image = image.convert('RGB')
 
 	""" Load the catalog file
 	"""
@@ -59,11 +51,15 @@ if __name__ == "__main__":
 		object['flux'] = item[tableColumns.names.index("FLUX")]
 		catalog.append(object)
 		
-	print catalog
+	draw = ImageDraw.Draw(image)
 	for i in catalog:
 		x = i['x'] 
-		y = i['y'] 
-		fwhm = 4
-		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), fwhm*3, color='green', fill=False, linewidth=2.0))
+		y = image.size[1] - i['y'] 
+		radius = 12
+		draw.arc((int(x-radius),int(y-radius), int(x+radius), int(y+radius)), 0, 360, fill = "green")
+	del draw 
+	if arg.preview: image.show();
 
-	matplotlib.pyplot.show()
+	# write to stdout
+	image.save(outputFilename, "PNG")
+	

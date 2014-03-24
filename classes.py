@@ -98,6 +98,7 @@ class configObject:
         self.MINPIXELDISTANCE = 5
         self.FONT = "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf"
         self.RUNTEMPLATE = "/home/rashley/astro/ucamsite/templates/runxxx.jinja"
+        self.WORKINGDIR = "/storage/astro2/phrnaw/ucamsite"
 
 
     def __setitem__(self, item, value):

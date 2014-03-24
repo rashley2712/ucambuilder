@@ -378,6 +378,29 @@ if __name__ == "__main__":
 	debug.write("Writing PNG file: " + imageFilename) 
 	colourImage.save(imageFilename, "PNG")
 
+	""" Write the normalised stacked images to individual FITS files.
+	"""
+	for channel in channelNames:
+		runIdent = arg.runname
+		imageFilename = utils.addPaths(config.SITE_PATH,runIdent) + "_" + channel + "_n.fits"
+		stackedImage = stackedImages[channel]
+		fullImage =  numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
+		for j in range(frameInfo.numWindows):
+			windowImage = stackedImage.getWindow(j)
+			xll = frameInfo.getWindow(j).xll 
+			yll = frameInfo.getWindow(j).yll 
+			xsize = frameInfo.getWindow(j).xsize 
+			ysize = frameInfo.getWindow(j).ysize 
+			fullImage[xll:xll+xsize, yll:yll+ysize] = fullImage[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+			
+
+		fullImage = numpy.rot90(fullImage)
+		fullImage = numpy.flipud(fullImage)
+		debug.write("Writing FITS file: " + imageFilename, level=2)
+		ultracamutils.writeFITSwithRunHeaders(fullImage, imageFilename, runInfo)
+
+		
+
 	""" Write the stacked images to a FITS file
 	"""
 	for channel in channelNames:

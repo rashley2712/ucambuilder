@@ -366,9 +366,9 @@ if __name__ == "__main__":
 		
 			runIdent = arg.runname
 		
-			outputFilename = utils.addPaths(config.SITE_PATH,runIdent) 
+			outputFilename = utils.addPaths(config.WORKINGDIR,runIdent) 
 			outputFilename+= "_" + channel + "_raw.json"
-			debug.write("Writing JSON file: " + outputFilename)
+			debug.write("Writing JSON file: " + outputFilename, level = 2)
 	
 			outputfile = open( outputFilename, "w" )
 			json.dump(allChannelObjects, outputfile)
@@ -381,7 +381,7 @@ if __name__ == "__main__":
 		outputData = {}
 		outputData['Target'] = runInfo.target
 		xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
-		outputData['numWindows'] = frameInfo.numWindowsh
+		outputData['numWindows'] = frameInfo.numWindows
 		outputData['maxExtents'] = [xmin, xmax, ymin, ymax]
 		
 		outputfile = open( outputFilename, "w" )
