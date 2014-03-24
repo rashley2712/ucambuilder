@@ -5,7 +5,7 @@ import argparse
 import matplotlib.pyplot, numpy
 import Image, ImageDraw
 import ultracamutils
-import classes
+import classes, wcsclasses
 import os, subprocess
 
 if __name__ == "__main__":
@@ -87,11 +87,11 @@ if __name__ == "__main__":
 			solvefieldCommand.append("--radius")
 			solvefieldCommand.append(str(1))
 			solvefieldCommand.append("-t3")
-			
+			solvefieldCommand.append("--no-plots")
 	
 			subprocess.call(solvefieldCommand)
 		else:
-			debug.write("Skipping the %s channel as it appears to already be solved"%(channelDescriptions[c]), level = 2)
+			debug.write("Skipping the %s channel as it appears to be solved"%(channelDescriptions[c]), level = 2)
 	
 	""" Check if we have a solution for each channel
 	"""
@@ -123,5 +123,35 @@ if __name__ == "__main__":
 			mergeWCSCommand.append("-d")
 			subprocess.call(mergeWCSCommand)
 			
+	""" Write a .json object for the WCS solution to use in the web pages
+	"""
+	for n, c in enumerate(channels):
+		if solved[n]:
+			wcsFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + '_' + c + ".wcs"
+			wcsFile = astropy.io.fits.open(wcsFilename)
+			header = wcsFile[0].header
+			wcs = wcsclasses.wcsSolution()
+			
+			equinox = float(header['EQUINOX'])
+			referenceCoord = float(header['CRVAL1']), float(header['CRVAL2'])
+			referencePixel = float(header['CRPIX1']), float(header['CRPIX2'])
+			
+			CD_array = [ [header['CD1_1'], header['CD1_2']], [ header['CD2_1'], header['CD2_2'] ] ]
+			
+			wcs.setSolution(equinox, referenceCoord, referencePixel, CD_array)
+			
+			print wcs
+			
+			print wcs.getWorldCoord( (512, 512) )
+			#data = sexCatalog["LDAC_OBJECTS"].data
+			#columns = sexCatalog["LDAC_OBJECTS"].columns
+			#objects = []
 	
-		
+			#for item in data:
+			#	object = {}
+			#	object['id']     = item[columns.names.index("NUMBER")]
+			#	objects.append(object)
+	
+			wcsFile.close()
+	
+	

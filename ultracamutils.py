@@ -334,6 +334,12 @@ def addPaths(path1, path2):
 	path+= path2
 	return path
 	
+def createFolder(path):
+	""" Creates a folder if it does not exist already
+	"""
+	if not os.path.exists(path):
+		os.mkdir(path)
+	
 def writePNG(image, filename, caption = ""):
     """ Writes to a PNG file using the PIL library. Adds a caption if sent in the parameters. Also adds a .png extension if it isn't already there in 'filename'
 	"""

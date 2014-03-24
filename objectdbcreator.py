@@ -190,6 +190,14 @@ if __name__ == "__main__":
 	if arg.preview: 
 		matplotlib.pyplot.ion()
 		fig = matplotlib.pyplot.gcf()
+		
+	""" Check that the working folders and the output folders are there
+	"""
+	(runDate, runNumber) = ultracamutils.separateRunNameAndDate(arg.runname)
+	workingFolder = ultracamutils.addPaths(config.WORKINGDIR, runDate)
+	outputFolder = ultracamutils.addPaths(config.SITE_PATH, runDate)
+	ultracamutils.createFolder(workingFolder)
+	ultracamutils.createFolder(outputFolder)
 	
 	startFrame = arg.startframe
 	if startFrame<1:
