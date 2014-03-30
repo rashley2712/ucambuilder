@@ -1,4 +1,5 @@
 import numpy
+import json
 
 class wcsSolution:
 
@@ -49,4 +50,19 @@ class wcsSolution:
 		world = (world[0] + self.raDeg, world[1] + self.dec)
 				
 		return world
+		
+	def toJSON(self):
+		jsonObject = {}
+		jsonObject['equinox'] = self.equinox
+		jsonObject['ra'] = self.raDeg
+		jsonObject['dec'] = self.dec
+		jsonObject['x_ref'] = self.pixReference[0]
+		jsonObject['y_ref'] = self.pixReference[1]
+		
+		jsonObject['CD_1_1'] = self.linearTransform[0][0]
+		jsonObject['CD_1_2'] = self.linearTransform[0][1]
+		jsonObject['CD_2_1'] = self.linearTransform[1][0]
+		jsonObject['CD_2_2'] = self.linearTransform[1][1]
+		
+		return json.dumps(jsonObject)
 		

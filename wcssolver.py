@@ -128,6 +128,7 @@ if __name__ == "__main__":
 	for n, c in enumerate(channels):
 		if solved[n]:
 			wcsFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + '_' + c + ".wcs"
+			wcsJSONFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname) + '_' + c + "_wcs.json"
 			wcsFile = astropy.io.fits.open(wcsFilename)
 			header = wcsFile[0].header
 			wcs = wcsclasses.wcsSolution()
@@ -143,6 +144,12 @@ if __name__ == "__main__":
 			print wcs
 			
 			print wcs.getWorldCoord( (512, 512) )
+			
+			print wcs.toJSON()
+			
+			wcsJSONFile = open(wcsJSONFilename, "w" )
+			wcsJSONFile.write(wcs.toJSON())
+			wcsJSONFile.close()
 			#data = sexCatalog["LDAC_OBJECTS"].data
 			#columns = sexCatalog["LDAC_OBJECTS"].columns
 			#objects = []
