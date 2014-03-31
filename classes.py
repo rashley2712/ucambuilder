@@ -301,6 +301,8 @@ class ObservedObject:
 		self.lastCounts = 0
 		self.meanFlux = 0
 		self.meanFWHM = 0
+		self.ra = 0
+		self.dec = 0
 		
 	def addExposure(self, x, y, counts, FWHM, MJD, exposureTime):
 		""" Adds a new exposure object to this object
@@ -365,6 +367,10 @@ class ObservedObject:
 	def setWindowIndex(self, windowIndex):
 		self.windowIndex = windowIndex
 		
+	def setWorldPosition(self, ra, dec):
+		self.ra = ra
+		self.dec = dec
+		
 	def addExposureByObject(self, newValue, MJD):
 		""" Adds a new exposure object to this object
 		"""
@@ -386,6 +392,7 @@ class ObservedObject:
 		distance = math.sqrt(xo*xo + yo*yo)
 		if (distance>self.distanceThreshold): return -1;
 		return distance;
+				
 
 	def isCosmicRay(self):
 		""" Returns true if this object thinks it is a cosmic ray, based on the simple test that it only appears in 1 frame

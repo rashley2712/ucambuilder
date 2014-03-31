@@ -284,6 +284,12 @@ def getTopObjects(objectList, num):
 	
 	return brightest
 	
+def calculateDistance(p1, p2):
+	xd = (p1[0] - p2[0])
+	yd = (p1[1] - p2[1])
+	distance = math.sqrt(xd*xd + yd*yd)
+	return distance 
+	
 def computeOffsetArray(arrayObject, dx, dy):
 	""" Returns a new array with the values linearly interpolated by the offset amount
 	"""

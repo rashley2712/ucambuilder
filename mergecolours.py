@@ -3,7 +3,9 @@ import ultracamutils
 import sys, subprocess, re, json
 import classes, numpy as np
 import astropy.io.fits
+import astropy.wcs
 import argparse, os
+import wcsclasses
 	
 if (__name__ == "__main__"):
 	parser = argparse.ArgumentParser(description='Reads the files produced by earlier steps in the pipeline.')
@@ -42,13 +44,55 @@ if (__name__ == "__main__"):
 		allObjects[c] = objects
 		debug.write("%d %s objects loaded."%(len(allObjects[c]), channelDescriptions[c]), level = 2)
 		
-	""" Look for and load WCS solutions for each colour (if it exists)
+	""" Look for and load WCS solutions for each colour (if they exist)
 	"""
 	for c in channels:
 		wcsSolutionFilename = ultracamutils.addPaths(config.WORKINGDIR, runName) + "_" + c + ".wcs"
 		if os.path.exists(wcsSolutionFilename):
 			debug.write("There is a WCS solution for channel: %s"%(channelDescriptions[c]), level = 2)
+			wcsParametersFile = astropy.io.fits.open(wcsSolutionFilename)
+			header = wcsParametersFile[0].header
+			wcs = wcsclasses.wcsSolution()
 			
+			equinox = float(header['EQUINOX'])
+			referenceCoord = float(header['CRVAL1']), float(header['CRVAL2'])
+			referencePixel = float(header['CRPIX1']), float(header['CRPIX2'])
+			
+			CD_array = [ [header['CD1_1'], header['CD1_2']], [ header['CD2_1'], header['CD2_2'] ] ]
+			
+			wcs.setSolution(equinox, referenceCoord, referencePixel, CD_array)
+
+			w = astropy.wcs.WCS(wcsParametersFile[0].header)
+
+			wcsParametersFile.close()
+
+			for o in allObjects[c]:
+				(x, y) = o.calculateMeanPosition()
+				(ra, dec) = w.all_pix2world(x,y, 1.)
+				o.setWorldPosition(ra, dec)			
 		else:
 			debug.write("No WCS solution... will have to fall back to 'pixel' matching.", level = 2)
+	
+	for c in channels:
+		objects = allObjects[c]
+		for o in objects:
+			o.calculateMeanFlux()
+			
+	
+	redObjects = allObjects['r']
+	greenObjects = allObjects['g']
+	for r in redObjects:
+		greenDistance = 1
+		closestGreen = {}
+		redCoords = (r.ra, r.dec)
+		for g in greenObjects:
+			greenCoords = (g.ra, g.dec)
+			distance = ultracamutils.calculateDistance(redCoords, greenCoords)
+			if distance < greenDistance:
+				closestGreen = g
+				greenDistance = distance
+		
+		print r, closestGreen, greenDistance
+		
+		
 	
