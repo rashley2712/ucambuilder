@@ -73,10 +73,19 @@ if (__name__ == "__main__"):
 		else:
 			debug.write("No WCS solution... will have to fall back to 'pixel' matching.", level = 2)
 	
+	""" Calculate the mean flux for each object in preparation for sorting them
+	"""
 	for c in channels:
 		objects = allObjects[c]
 		for o in objects:
 			o.calculateMeanFlux()
+			
+	""" Sort the objects
+	"""
+	for c in channels:
+		objects = allObjects[c]
+		sortedObjects = sorted(objects, key= lambda p:p.meanFlux, reverse=True)
+		allObjects[c] = sortedObjects
 			
 	
 	redObjects = allObjects['r']
