@@ -90,7 +90,11 @@ if (__name__ == "__main__"):
 	
 	redObjects = allObjects['r']
 	greenObjects = allObjects['g']
+	colourObjects = []
 	for r in redObjects:
+		id = ultracamutils.getUniqueID(colourObjects)
+		colourObject = classes.combined3ColourObject(id)
+		colourObject.setRedObject(r)
 		greenDistance = 1
 		closestGreen = {}
 		redCoords = (r.ra, r.dec)
@@ -100,8 +104,10 @@ if (__name__ == "__main__"):
 			if distance < greenDistance:
 				closestGreen = g
 				greenDistance = distance
+		colourObject.setGreenObject(closestGreen)
+		colourObjects.append(colourObject)
+		print colourObject
 		
-		print r, closestGreen, greenDistance
 		
 		
 	
