@@ -90,6 +90,7 @@ if (__name__ == "__main__"):
 	
 	redObjects = allObjects['r']
 	greenObjects = allObjects['g']
+	blueObjects = allObjects['b']
 	colourObjects = []
 	for r in redObjects:
 		id = ultracamutils.getUniqueID(colourObjects)
@@ -104,9 +105,28 @@ if (__name__ == "__main__"):
 			if distance < greenDistance:
 				closestGreen = g
 				greenDistance = distance
+				
 		colourObject.setGreenObject(closestGreen)
+		colourObject.rgDistance = distance
+
+		blueDistance = 1
+		for b in blueObjects:
+			blueCoords = (b.ra, b.dec)
+			distance = ultracamutils.calculateDistance(redCoords, blueCoords)
+			if distance < blueDistance:
+				closestBlue = g
+				blueDistance = distance
+
+		colourObject.setBlueObject(closestBlue)
+		colourObject.rbDistance = distance
+		
+		greenCoords = (closestGreen.ra, closestGreen.dec)
+		blueCoords = (closestBlue.ra, closestBlue.dec)
+		gbDistance = ultracamutils.calculateDistance(greenCoords, blueCoords)
+		colourObject.gbDistance = gbDistance
+
 		colourObjects.append(colourObject)
-		print colourObject
+		print colourObject.summaryString()
 		
 		
 		

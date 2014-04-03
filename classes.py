@@ -243,6 +243,9 @@ class combined3ColourObject:
 		self.g = None
 		self.b = None
 		self.id = id
+		self.rgDistance = 1000
+		self.rbDistance = 1000
+		self.gbDistance = 1000
 		
 	def setRedObject(self, object):
 		self.r = object
@@ -254,12 +257,17 @@ class combined3ColourObject:
 		self.b = object
 
 	def __str__(self):
-		outString = "ID: " + str(self.id) + "\n"
+		outString = "ID: " + str(self.id) + " \n"
 		
-		outString+= "Red: " + str(self.r) + "\n"
-		outString+= "Green: " + str(self.g) + "\n"
-		outString+= "Blue: " + str(self.b)
+		outString+= "[R: " + str(self.r) + "] \n"
+		outString+= "[G: " + str(self.g) + "] \n"
+		outString+= "[B: " + str(self.b) + "]"
 	
+		return outString
+		
+	def summaryString(self):
+		outString = "ID: " + str(self.id) + " [R: %3d G:%3d B:%3d]"%(self.r.id, self.g.id, self.b.id) + " "
+		outString+= "(r-g: %4f) (r-b: %4f) (g-b: %4f)"%(self.rgDistance, self.rbDistance, self.gbDistance)
 		return outString
 		
 	def toJSON(self):
