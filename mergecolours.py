@@ -107,7 +107,7 @@ if (__name__ == "__main__"):
 				greenDistance = distance
 				
 		colourObject.setGreenObject(closestGreen)
-		colourObject.rgDistance = distance
+		colourObject.rgDistance = greenDistance
 
 		blueDistance = 1
 		for b in blueObjects:
@@ -118,7 +118,7 @@ if (__name__ == "__main__"):
 				blueDistance = distance
 
 		colourObject.setBlueObject(closestBlue)
-		colourObject.rbDistance = distance
+		colourObject.rbDistance = blueDistance
 		
 		greenCoords = (closestGreen.ra, closestGreen.dec)
 		blueCoords = (closestBlue.ra, closestBlue.dec)
@@ -127,6 +127,20 @@ if (__name__ == "__main__"):
 
 		colourObjects.append(colourObject)
 		print colourObject.summaryString()
+		
+	""" Do some diagnostics on the top matches
+	"""
+	for n, c in enumerate(colourObjects):
+		print "ID: ", n
+		print c
+		r = c.r
+		g = c.g
+		b = c.b
+		print "Red   RA:%10.4f DEC:%10.4f"%(r.ra, r.dec)
+		print "Green RA:%10.4f DEC:%10.4f"%(g.ra, g.dec)
+		print "Blue  RA:%10.4f DEC:%10.4f"%(b.ra, b.dec)
+		print c.rgDistance, ultracamutils.calculateDistance((r.ra, r.dec), (g.ra, g.dec))
+		if n>10: break
 		
 		
 		
