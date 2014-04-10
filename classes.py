@@ -259,14 +259,36 @@ class combined3ColourObject:
 	def __str__(self):
 		outString = "ID: " + str(self.id) + " \n"
 		
-		outString+= "[R: " + str(self.r) + "] \n"
-		outString+= "[G: " + str(self.g) + "] \n"
-		outString+= "[B: " + str(self.b) + "]"
+		if (self.r!=None):
+			outString+= "[R: " + str(self.r) + "] \n"
+		else:
+			outString+= "[R: no match] \n"
+		if (self.g!=None):
+			outString+= "[G: " + str(self.g) + "] \n"
+		else:
+			outString+= "[G: no match] \n"
+		if (self.b!=None):
+			outString+= "[B: " + str(self.b) + "]"
+		else:
+			outString+= "[B: no match] \n"
+
 	
 		return outString
 		
 	def summaryString(self):
-		outString = "ID: " + str(self.id) + " [R: %3d G:%3d B:%3d]"%(self.r.id, self.g.id, self.b.id) + " "
+		if (self.r!=None):
+			redID = self.r.id
+		else:
+			redID = -1 
+		if (self.g!=None):
+			greenID = self.g.id
+		else:
+			greenID = -1 
+		if (self.b!=None):
+			blueID = self.b.id
+		else:
+			blueID = -1 
+		outString = "ID: " + str(self.id) + " [R: %3d G:%3d B:%3d]"%(redID, greenID, blueID) + " "
 		outString+= "(r-g: %4f) (r-b: %4f) (g-b: %4f)"%(self.rgDistance, self.rbDistance, self.gbDistance)
 		return outString
 		

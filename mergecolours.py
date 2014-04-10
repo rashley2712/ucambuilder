@@ -91,6 +91,8 @@ if (__name__ == "__main__"):
 	redObjects = allObjects['r']
 	greenObjects = allObjects['g']
 	blueObjects = allObjects['b']
+	distanceThresholdSeconds = 5.
+	distanceThresholdDegrees = distanceThresholdSeconds / 3600.
 	colourObjects = []
 	for r in redObjects:
 		id = ultracamutils.getUniqueID(colourObjects)
@@ -106,19 +108,29 @@ if (__name__ == "__main__"):
 				closestGreen = g
 				greenDistance = distance
 				
-		colourObject.setGreenObject(closestGreen)
-		colourObject.rgDistance = greenDistance
+		if (greenDistance < distanceThresholdDegrees):
+			colourObject.setGreenObject(closestGreen)
+			colourObject.rgDistance = greenDistance
+		else: 
+			print "too far for a match"
+			colourObject.setGreenObject(None)
+			colourObject.rgDistance = 1000
 
 		blueDistance = 1
 		for b in blueObjects:
 			blueCoords = (b.ra, b.dec)
 			distance = ultracamutils.calculateDistance(redCoords, blueCoords)
 			if distance < blueDistance:
-				closestBlue = g
+				closestBlue = b
 				blueDistance = distance
 
-		colourObject.setBlueObject(closestBlue)
-		colourObject.rbDistance = blueDistance
+		if (blueDistance < distanceThresholdDegrees):
+			colourObject.setBlueObject(closestBlue)
+			colourObject.rbDistance = blueDistance
+		else: 
+			print "too far for a match"
+			colourObject.setBlueObject(None)
+			colourObject.rbDistance = 1000
 		
 		greenCoords = (closestGreen.ra, closestGreen.dec)
 		blueCoords = (closestBlue.ra, closestBlue.dec)
@@ -136,11 +148,40 @@ if (__name__ == "__main__"):
 		r = c.r
 		g = c.g
 		b = c.b
-		print "Red   RA:%10.4f DEC:%10.4f"%(r.ra, r.dec)
-		print "Green RA:%10.4f DEC:%10.4f"%(g.ra, g.dec)
-		print "Blue  RA:%10.4f DEC:%10.4f"%(b.ra, b.dec)
-		print c.rgDistance, ultracamutils.calculateDistance((r.ra, r.dec), (g.ra, g.dec))
-		if n>10: break
+		if (r!=None): print "Red   RA:%10.5f DEC:%10.5f"%(r.ra, r.dec)
+		if (g!=None): print "Green RA:%10.5f DEC:%10.5f"%(g.ra, g.dec)
+		if (b!=None): print "Blue  RA:%10.5f DEC:%10.5f"%(b.ra, b.dec)
+		print c.rgDistance, c.rbDistance, c.gbDistance
+		if n>100: break
+		
+	""" Look for duplicates
+	"""
+	rIDlist = []
+	gIDlist = []
+	bIDlist = []
+	for c in colourObjects:
+		if (c.r!=None): 
+			try:
+				index = rIDlist.index(c.r.id)
+				print "Red duplicate:", c.r.id, index
+			except ValueError:
+				rIDlist.append(c.r.id)
+				print "Adding index: ", c.r.id, len(rIDlist)
+
+		if (c.g!=None): 
+			try:
+				index = gIDlist.index(c.g.id)
+				print "Green duplicate:", index
+			except ValueError:
+				gIDlist.append(c.g.id)
+		if (c.b!=None): 
+			try:
+				index = bIDlist.index(c.b.id)
+				print "Blue duplicate:", index
+			except ValueError:
+				bIDlist.append(c.b.id)
+		
+	print rIDlist
 		
 		
 		
