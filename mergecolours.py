@@ -91,7 +91,7 @@ if (__name__ == "__main__"):
 	redObjects = allObjects['r']
 	greenObjects = allObjects['g']
 	blueObjects = allObjects['b']
-	distanceThresholdSeconds = 5.
+	distanceThresholdSeconds = 10.
 	distanceThresholdDegrees = distanceThresholdSeconds / 3600.
 	colourObjects = []
 	for r in redObjects:
@@ -112,7 +112,7 @@ if (__name__ == "__main__"):
 			colourObject.setGreenObject(closestGreen)
 			colourObject.rgDistance = greenDistance
 		else: 
-			print "too far for a match"
+			debug.write("too far for a match")
 			colourObject.setGreenObject(None)
 			colourObject.rgDistance = 1000
 
@@ -128,7 +128,7 @@ if (__name__ == "__main__"):
 			colourObject.setBlueObject(closestBlue)
 			colourObject.rbDistance = blueDistance
 		else: 
-			print "too far for a match"
+			debug.write("too far for a match")
 			colourObject.setBlueObject(None)
 			colourObject.rbDistance = 1000
 		
@@ -171,17 +171,16 @@ if (__name__ == "__main__"):
 		if (c.g!=None): 
 			try:
 				index = gIDlist.index(c.g.id)
-				print "Green duplicate:", index
+				print "Green duplicate:", c.g.id, index
 			except ValueError:
 				gIDlist.append(c.g.id)
 		if (c.b!=None): 
 			try:
 				index = bIDlist.index(c.b.id)
-				print "Blue duplicate:", index
+				print "Blue duplicate:", c.b.id, index
 			except ValueError:
 				bIDlist.append(c.b.id)
 		
-	print rIDlist
 		
 		
 		
