@@ -238,66 +238,37 @@ class WindowObject:
 class combined3ColourObject:
 	""" This is a class to encapsulate a single observed object with all three channel data combined
 	"""
+	colours = ['r', 'g', 'b']
+	colourNames = ['Red', 'Green', 'Blue']
+	
 	def __init__(self, id):
-		self.r = None
-		self.g = None
-		self.b = None
 		self.id = id
-		self.rgDistance = 1000
-		self.rbDistance = 1000
-		self.gbDistance = 1000
+		self.colourIDs = {'r': -1, 'g': -1, 'b': -1}
 		
-	def setRedObject(self, object):
-		self.r = object
-
-	def setGreenObject(self, object):
-		self.g = object
-
-	def setBlueObject(self, object):
-		self.b = object
-
+	def setColourID(self, colour, ID):
+		self.colourIDs[colour] = ID
+		
+	def getColourID(self, colourIndex):
+		colourID = self.colourIDs[colourIndex]
+		return colourID
+		
 	def __str__(self):
 		outString = "ID: " + str(self.id) + " \n"
 		
-		if (self.r!=None):
-			outString+= "[R: " + str(self.r) + "] \n"
-		else:
-			outString+= "[R: no match] \n"
-		if (self.g!=None):
-			outString+= "[G: " + str(self.g) + "] \n"
-		else:
-			outString+= "[G: no match] \n"
-		if (self.b!=None):
-			outString+= "[B: " + str(self.b) + "]"
-		else:
-			outString+= "[B: no match] \n"
+		for n, c in enumerate(combined3ColourObject.colours):
+			outString+= "[%s: %s] \n"%(combined3ColourObject.colourNames[n], self.colourIDs[c])
 
-	
 		return outString
 		
 	def summaryString(self):
-		if (self.r!=None):
-			redID = self.r.id
-		else:
-			redID = -1 
-		if (self.g!=None):
-			greenID = self.g.id
-		else:
-			greenID = -1 
-		if (self.b!=None):
-			blueID = self.b.id
-		else:
-			blueID = -1 
-		outString = "ID: " + str(self.id) + " [R: %3d G:%3d B:%3d]"%(redID, greenID, blueID) + " "
-		outString+= "(r-g: %4f) (r-b: %4f) (g-b: %4f)"%(self.rgDistance, self.rbDistance, self.gbDistance)
+		outString = "ID: " + str(self.id) + " [R:%3d G:%3d B:%3d]"%(self.colourIDs['r'], self.colourIDs['g'], self.colourIDs['b']) 
 		return outString
 		
 	def toJSON(self):
-		outObject = {'id':0, 'red_id': -1, 'green_id':-1, 'blue_id':-1}
+		outObject = {'id':0, 'r': -1, 'g':-1, 'b':-1}
 		outObject['id'] = self.id
-		if (self.r!=None): outObject['red_id'] = self.r.id
-		if (self.g!=None): outObject['green_id'] = self.g.id
-		if (self.b!=None): outObject['blue_id'] = self.b.id
+		for c in combined3ColourObject.colours: 
+			outObject[c] = self.colourIDs[c]
 		return json.dumps(outObject)
 
 class FrameCatalogObject:
