@@ -243,6 +243,18 @@ if (__name__ == "__main__"):
 
 	print "Duplicates: ", duplicates
 	
+	outputFilename = ultracamutils.addPaths(config.SITE_PATH,runName) 
+	outputFilename+= "_rgb" + ".json"
+
+	jsonArray = []
 	for c in colourObjects:
 		print c.toJSON()
+		jsonArray.append(c.toJSON())
+	
+	
+	outputfile = open( outputFilename, "w" )
+	debug.write("Writing colour objects to %s"%outputFilename)
+	json.dump(jsonArray, outputfile)
+	outputfile.close()
+
 
