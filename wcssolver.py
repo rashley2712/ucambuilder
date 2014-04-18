@@ -2,11 +2,11 @@
 
 import astropy.io.fits
 import argparse
-import matplotlib.pyplot, numpy
+import matplotlib.pyplot, numpy, math
 import Image, ImageDraw
 import ultracamutils
 import classes, wcsclasses
-import os, subprocess
+import os, subprocess, sys
 
 if __name__ == "__main__":
 	
@@ -67,6 +67,66 @@ if __name__ == "__main__":
 		if os.path.exists(solvedFileMarker):
 			solved[n] = True
 
+	""" It might be a good idea to tell astrometry.net that not all of the 1024x1024 size field is relevant... 
+	    Read the catalog files and determine the extents of the fields. 
+	"""
+	allExtents = {}
+	for c in channels:
+		xylsFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + '_' + c + ".xyls"
+		catalog = astropy.io.fits.open(xylsFilename)
+		columns = catalog[1].columns
+		data = catalog[1].data
+		objectCatalog = []
+		for item in data:
+			object = {}
+			object['id'] = int(item[columns.names.index("ID")])
+			object['x'] = float(item[columns.names.index("X")])
+			object['y'] = float(item[columns.names.index("Y")])
+			object['flux'] = float(item[columns.names.index("FLUX")])
+			objectCatalog.append(object)
+		
+		xmin = ymin = 0
+		xmax = ymax = 1024	
+		if len(objectCatalog)!=0:
+			xmin = objectCatalog[0]['x']
+			xmax = xmin
+			ymin = objectCatalog[0]['y']
+			ymax = ymin
+			for item in objectCatalog:
+				if item['x'] < xmin:
+					xmin = item['x']
+				if item['x'] > xmax:
+					xmax = item['x']
+				if item['y'] < ymin:
+					ymin = item['y']
+				if item['y'] > ymax:
+					ymax = item['y']
+		
+			xmin = math.floor(xmin) - 2
+			xmax = math.ceil(xmax) + 2
+			ymin = math.floor(ymin) - 2
+			ymax = math.ceil(ymax) + 2
+		width = xmax - xmin
+		height = ymax - ymin
+		extents = (width, height)
+		allExtents[c] = extents
+		debug.write("%s max extents (%d, %d, %d, %d)"%(channelDescriptions[c], xmin, xmax, ymin, ymax))
+		catalog.close()
+
+	print allExtents	
+		
+	"""
+	headers = sexCatalog["LDAC_OBJECTS"].header
+	data = sexCatalog["LDAC_OBJECTS"].data
+	columns = sexCatalog["LDAC_OBJECTS"].columns
+	objects = []
+	
+	for item in data:
+		object = {}
+		object['id']     = item[columns.names.index("NUMBER")]
+		object['x']      = item[columns.names.index("X_IMAGE")]
+	"""
+
 	""" solve-field -X X -Y Y test.xyls --width 1024 --height 1024 --ra 296.007 --dec 40.2954 --radius 1 --overwrite -L 5 -u amw
 	"""
 	for n, c in enumerate(channels):
@@ -75,10 +135,12 @@ if __name__ == "__main__":
 			solvefieldCommand.append(ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + '_' + c + ".xyls")
 			solvefieldCommand.append("-XX")
 			solvefieldCommand.append("-YY")
-			solvefieldCommand.append("-w1024")
-			solvefieldCommand.append("-e1024")
+			width, height = allExtents[c]
+			solvefieldCommand.append("-w" + str(width))
+			solvefieldCommand.append("-e" + str(height))
 			solvefieldCommand.append("--overwrite")
 			solvefieldCommand.append("-L5")
+			solvefieldCommand.append("-H10")
 			solvefieldCommand.append("-uamw")
 			solvefieldCommand.append("--ra")
 			solvefieldCommand.append(str(runInfo.ra*15.))
