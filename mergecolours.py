@@ -34,6 +34,7 @@ if (__name__ == "__main__"):
 	channels = ['r', 'g', 'b']
 	channelDescriptions = {'r': "Red", 'g': "Green", 'b': "Blue"}
 	allObjects = {'r': [], 'g':[], 'b':[]}
+	pixelMatch = False      # This is set to True if we don't have a WCS solution and need to use pixel locations for matching
 	
 	""" Load the objects from the .json files.... channel by channel (r, g, b)
 	"""
@@ -72,13 +73,15 @@ if (__name__ == "__main__"):
 				o.setWorldPosition(ra, dec)			
 		else:
 			debug.write("No WCS solution... will have to fall back to 'pixel' matching.", level = 2)
+			pixelMatch = True
 	
-	""" Calculate the mean flux for each object in preparation for sorting them
+	""" Calculate the mean flux for each object in preparation for sorting them. Also calculate their mean pixel position.
 	"""
 	for c in channels:
 		objects = allObjects[c]
 		for o in objects:
 			o.calculateMeanFlux()
+			o.calculateMeanPosition()
 			
 	""" Sort the objects
 	"""
@@ -91,127 +94,173 @@ if (__name__ == "__main__"):
 	redObjects = allObjects['r']
 	greenObjects = allObjects['g']
 	blueObjects = allObjects['b']
-	distanceThresholdSeconds = 10.
-	distanceThresholdDegrees = distanceThresholdSeconds / 3600.
-
-	allObjectsCopy = copy.copy(allObjects)
 	
-	""" Start with the colour that has the fewest number of objects
-	"""
-	startCatalogIndex = 'r'
-	startCatalogLength = len(allObjectsCopy[startCatalogIndex])
-	for c in channels:
-		length = len(allObjectsCopy[c])
-		if length<startCatalogLength:
-			startCatalogIndex = c
-			startCatalogLength = length
-	debug.write("Channel with the smallest number of objects is %s with %d objects."%(channelDescriptions[startCatalogIndex], startCatalogLength))
-			
-	colourObjects = []
+	if not pixelMatch:
+		distanceThresholdSeconds = 10.
+		distanceThresholdDegrees = distanceThresholdSeconds / 3600.
 	
-	threeColours = ['r', 'g', 'b']
-	currentColour = startCatalogIndex
-	debug.write("Running through the %s objects."%channelDescriptions[currentColour])
-	threeColours.pop(threeColours.index(currentColour))
-	print "Remaining colours", threeColours
-	firstColourObjects = allObjectsCopy[startCatalogIndex]
-	firstColourList = copy.copy(firstColourObjects)
-	for o in firstColourObjects:
-		id = ultracamutils.getUniqueID(colourObjects)
-		colourObject = classes.combined3ColourObject(id)
-		colourObject.setColourID(currentColour, o.id)
-		firstColourList.remove(o)
-		allObjectsCopy[currentColour] = firstColourList
-		originalCoords = (o.ra, o.dec)
-		for othercolour in threeColours:
-			objects = allObjectsCopy[othercolour]
-			debug.write("Looking for %s objects to match the current %s object"%(channelDescriptions[othercolour], channelDescriptions[currentColour]))
-			closestDistance = 1
-			closestObject = None
-			for p in objects:
-				objectCoords = (p.ra, p.dec)
-				distance = ultracamutils.calculateDistance(originalCoords, objectCoords)
-				if distance < closestDistance:
-					closestDistance = distance
-					closestObject = p
-			if closestDistance < distanceThresholdDegrees:
-				colourObject.setColourID(othercolour, closestObject.id)
-				objects.remove(closestObject)
-				allObjectsCopy[othercolour] = objects
-			else: 
-				debug.write("No match... to far from threshold")
-			
-		debug.write(colourObject)
-		colourObjects.append(colourObject)
+		allObjectsCopy = copy.copy(allObjects)
 		
-	debug.write("Objects remaining:")	
-	for c in channels:
-		debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
-
-	startCatalogIndex = threeColours[0]
-	startCatalogLength = len(allObjectsCopy[startCatalogIndex])
-	for c in threeColours:
-		length = len(allObjectsCopy[c])
-		if length<startCatalogLength:
-			startCatalogIndex = c
-			startCatalogLength = length
-	currentColour = startCatalogIndex
-			
-	debug.write("Channel with the smallest number of objects is %s with %d objects."%(channelDescriptions[startCatalogIndex], startCatalogLength))
-	threeColours.pop(threeColours.index(currentColour))
-	print "Remaining colours:", threeColours
-	
-	secondColourObjects = allObjectsCopy[currentColour]
-	secondColourList = copy.copy(secondColourObjects)
-	for o in secondColourObjects:
-		id = ultracamutils.getUniqueID(colourObjects)
-		colourObject = classes.combined3ColourObject(id)
-		colourObject.setColourID(currentColour, o.id)
-		secondColourList.remove(o)
-		allObjectsCopy[currentColour] = secondColourList
-		originalCoords = (o.ra, o.dec)
-		for othercolour in threeColours:
-			objects = allObjectsCopy[othercolour]
-			debug.write("Looking for %s objects to match the current %s object"%(channelDescriptions[othercolour], channelDescriptions[currentColour]))
-			closestDistance = 1
-			closestObject = None
-			for p in objects:
-				objectCoords = (p.ra, p.dec)
-				distance = ultracamutils.calculateDistance(originalCoords, objectCoords)
-				if distance < closestDistance:
-					closestDistance = distance
-					closestObject = p
-			if closestDistance < distanceThresholdDegrees:
-				colourObject.setColourID(othercolour, closestObject.id)
-				objects.remove(closestObject)
-				allObjectsCopy[othercolour] = objects
-			else: 
-				debug.write("No match... to far from threshold")
-			
-		debug.write(colourObject)
-		colourObjects.append(colourObject)
+		""" Start with the colour that has the fewest number of objects
+		"""
+		startCatalogIndex = 'r'
+		startCatalogLength = len(allObjectsCopy[startCatalogIndex])
+		for c in channels:
+			length = len(allObjectsCopy[c])
+			if length<startCatalogLength:
+				startCatalogIndex = c
+				startCatalogLength = length
+		debug.write("Channel with the smallest number of objects is %s with %d objects."%(channelDescriptions[startCatalogIndex], startCatalogLength))
+				
+		colourObjects = []
 		
-	debug.write("Objects remaining:")	
-	for c in channels:
-		debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
-
-	currentColour = threeColours[0]
-	finalObjects = allObjectsCopy[currentColour]
-	finalColourList = copy.copy(finalObjects)
-	for o in finalObjects:
-		id = ultracamutils.getUniqueID(colourObjects)
-		colourObject = classes.combined3ColourObject(id)
-		colourObject.setColourID(currentColour, o.id)
-		debug.write(colourObject)
-		colourObjects.append(colourObject)
-		finalColourList.remove(o)
-		allObjectsCopy[currentColour] = finalColourList
-		
-	debug.write("Objects remaining:")	
-	for c in channels:
-		debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
-
+		threeColours = ['r', 'g', 'b']
+		currentColour = startCatalogIndex
+		debug.write("Running through the %s objects."%channelDescriptions[currentColour])
+		threeColours.pop(threeColours.index(currentColour))
+		print "Remaining colours", threeColours
+		firstColourObjects = allObjectsCopy[startCatalogIndex]
+		firstColourList = copy.copy(firstColourObjects)
+		for o in firstColourObjects:
+			id = ultracamutils.getUniqueID(colourObjects)
+			colourObject = classes.combined3ColourObject(id)
+			colourObject.setColourID(currentColour, o.id)
+			firstColourList.remove(o)
+			allObjectsCopy[currentColour] = firstColourList
+			originalCoords = (o.ra, o.dec)
+			for othercolour in threeColours:
+				objects = allObjectsCopy[othercolour]
+				debug.write("Looking for %s objects to match the current %s object"%(channelDescriptions[othercolour], channelDescriptions[currentColour]))
+				closestDistance = 1
+				closestObject = None
+				for p in objects:
+					objectCoords = (p.ra, p.dec)
+					distance = ultracamutils.calculateDistance(originalCoords, objectCoords)
+					if distance < closestDistance:
+						closestDistance = distance
+						closestObject = p
+				if closestDistance < distanceThresholdDegrees:
+					colourObject.setColourID(othercolour, closestObject.id)
+					objects.remove(closestObject)
+					allObjectsCopy[othercolour] = objects
+				else: 
+					debug.write("No match... to far from threshold")
+				
+			debug.write(colourObject)
+			colourObjects.append(colourObject)
+			
+		debug.write("Objects remaining:")	
+		for c in channels:
+			debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
 	
+		startCatalogIndex = threeColours[0]
+		startCatalogLength = len(allObjectsCopy[startCatalogIndex])
+		for c in threeColours:
+			length = len(allObjectsCopy[c])
+			if length<startCatalogLength:
+				startCatalogIndex = c
+				startCatalogLength = length
+		currentColour = startCatalogIndex
+				
+		debug.write("Channel with the smallest number of objects is %s with %d objects."%(channelDescriptions[startCatalogIndex], startCatalogLength))
+		threeColours.pop(threeColours.index(currentColour))
+		print "Remaining colours:", threeColours
+		
+		secondColourObjects = allObjectsCopy[currentColour]
+		secondColourList = copy.copy(secondColourObjects)
+		for o in secondColourObjects:
+			id = ultracamutils.getUniqueID(colourObjects)
+			colourObject = classes.combined3ColourObject(id)
+			colourObject.setColourID(currentColour, o.id)
+			secondColourList.remove(o)
+			allObjectsCopy[currentColour] = secondColourList
+			originalCoords = (o.ra, o.dec)
+			for othercolour in threeColours:
+				objects = allObjectsCopy[othercolour]
+				debug.write("Looking for %s objects to match the current %s object"%(channelDescriptions[othercolour], channelDescriptions[currentColour]))
+				closestDistance = 1
+				closestObject = None
+				for p in objects:
+					objectCoords = (p.ra, p.dec)
+					distance = ultracamutils.calculateDistance(originalCoords, objectCoords)
+					if distance < closestDistance:
+						closestDistance = distance
+						closestObject = p
+				if closestDistance < distanceThresholdDegrees:
+					colourObject.setColourID(othercolour, closestObject.id)
+					objects.remove(closestObject)
+					allObjectsCopy[othercolour] = objects
+				else: 
+					debug.write("No match... to far from threshold")
+				
+			debug.write(colourObject)
+			colourObjects.append(colourObject)
+			
+		debug.write("Objects remaining:")	
+		for c in channels:
+			debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
+	
+		currentColour = threeColours[0]
+		finalObjects = allObjectsCopy[currentColour]
+		finalColourList = copy.copy(finalObjects)
+		for o in finalObjects:
+			id = ultracamutils.getUniqueID(colourObjects)
+			colourObject = classes.combined3ColourObject(id)
+			colourObject.setColourID(currentColour, o.id)
+			debug.write(colourObject)
+			colourObjects.append(colourObject)
+			finalColourList.remove(o)
+			allObjectsCopy[currentColour] = finalColourList
+			
+		debug.write("Objects remaining:")	
+		for c in channels:
+			debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
+	
+	else:        # This is if we are using pixel matching (rather than WCS coordinates)
+
+		debug.write("We are doing pixel matching")
+
+		pixelDistanceThreshold = 10
+
+		colourObjects = []
+
+		redObjects = allObjects['r']
+		greenObjects = allObjects['g']
+		blueObjects = allObjects['b']
+
+		for r in redObjects:
+			newID = ultracamutils.getUniqueID(colourObjects)
+			colourObject = classes.combined3ColourObject(newID)
+			colourObject.setColourID('r', r.id)
+			debug.write("Red object: " + str(r))
+			minDistance = 1000
+			closestGreen = greenObjects[0]
+			for g in greenObjects:
+				distance = ultracamutils.calculateDistance(r.meanPosition, g.meanPosition)
+				if distance<minDistance:
+					minDistance = distance
+					closestGreen = g
+			debug.write("Closest green: " + str(closestGreen))
+			if minDistance < pixelDistanceThreshold:
+				colourObject.setColourID('g', closestGreen.id)
+			else: debug.write("... but too far away")
+
+			minDistance = 1000
+			closestBlue = blueObjects[0]
+			for b in blueObjects:
+				distance = ultracamutils.calculateDistance(r.meanPosition, b.meanPosition)
+				if distance<minDistance:
+					minDistance = distance
+					closestBlue = b
+			debug.write("Closest blue: " + str(closestBlue))
+			if minDistance < pixelDistanceThreshold:
+				colourObject.setColourID('b', closestBlue.id)
+			else: debug.write("... but too far away")
+
+			colourObjects.append(colourObject)
+
+			debug.write(" ")
+
 	""" Look for duplicates
 	"""
 	redList = []
