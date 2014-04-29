@@ -8,8 +8,8 @@ if __name__ == "__main__":
 		
 	parser = argparse.ArgumentParser(description='Chains together the necessary steps to run the pipeline for one particular run')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
-	parser.add_argument('-d', '--debuglevel', default = 1, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
-	parser.add_argument('-n', '--numframes', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
+	parser.add_argument('-d', '--debuglevel', default = 2, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
+	parser.add_argument('-n', '--numframes', type=int, help='Number of frames (default = all frames)')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	arg = parser.parse_args()
 
@@ -17,7 +17,6 @@ if __name__ == "__main__":
 	debug = classes.debugObject(config.DEBUG)
 	debug.toggleTimeLog()
 	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
-
 
 	if arg.numframes!=None:
 		numFrames = arg.numframes
@@ -40,6 +39,14 @@ if __name__ == "__main__":
 	else:
 		subprocess.call(["objectdbcreator.py", arg.runname, dString])
 
-	subprocess.call(["postprocessor.py", arg.runname, dString])
+	xylsString = "--xyls"
+	subprocess.call(["postprocessor.py", arg.runname, dString, xylsString])
 	
+	subprocess.call(["wcssolver.py", arg.runname, dString])
+
+	subprocess.call(["mergecolours.py", arg.runname, dString])
+
 	subprocess.call(["create_html.py", arg.runname])
+	
+	outputURL = ultracamutils.addPaths(config.ROOTURL, arg.runname + ".html")
+	print "The output for this run is available at: %s"%outputURL
