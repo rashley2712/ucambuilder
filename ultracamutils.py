@@ -111,10 +111,21 @@ def buildObjectsFromJSON(filename):
 		
 	return objects
 	
-def createFITS(frameNumber, window, channel, imageData):
+def runnameToUniqueID(runname):
+	""" Converts a runname to a unique ID number.
+	"""
+	retString = runname
+	if char in "-/run":
+		retString = retString.replace(char,'')
+	
+	return retString
+	
+	
+def createFITS(frameNumber, window, channel, imageData, runname):
     """ Writes a FITS file for the images in a frame of the CCD
     """
-    filename = "/tmp/ucamwin" + str(frameNumber).zfill(5)+ "_" + str(window) + "_" + channel + ".fits"
+    uniqueID = runnameToUniqueID(runname)
+    filename = "/tmp/ucamwin" + str(uniqueID) + str(frameNumber).zfill(5)+ "_" + str(window) + "_" + channel + ".fits"
     hdu = astropy.io.fits.PrimaryHDU(imageData)
     hdulist = astropy.io.fits.HDUList([hdu])
     hdulist.writeto(filename, clobber=True)
@@ -136,7 +147,7 @@ def writeFITSwithRunHeaders(imageData, filename, runInfo):
 	fieldScaleY = 8.3E-05
 	
 	prihdr = astropy.io.fits.Header()
-	prihdr['COMMENT'] = "This file created by  from the Ultracam pipeline."
+	prihdr['COMMENT'] = "This file created by the Ultracam pipeline."
 	prihdr['TARGET'] = runInfo.target
 	prihdr['COMMENT'] = runInfo.comment
 	prihdr['EQUINOX'] = 2000
@@ -369,3 +380,29 @@ def timedeltaHoursMinsSeconds(td):
 	hours, remainder = divmod(td.seconds, 3600)
 	minutes, seconds = divmod(remainder, 60)
 	return (hours, minutes, seconds)
+	
+def writeFriendlyTimeMinutes(minutes):
+	""" Writes a friendly time (in hours and/or minutes) based on an input of minutes
+	"""
+	timeStr = str(int(minutes)) + " minutes"
+	if minutes > 60: 
+		hours = minutes/60.
+		print minutes
+		minutes = minutes - int(hours)*60
+		print hours
+		timeStr= "%d hours, %d minutes"%(int(hours), int(minutes))
+	
+	return timeStr
+
+
+def writeFriendlyTimeSeconds(seconds):
+	""" Writes a friendly time (in hours and/or minutes) based on an input of seconds
+	"""
+	minutes = seconds / 60.
+	timeStr = str(int(minutes)) + " minutes"
+	if minutes > 60: 
+		hours = minutes/60.
+		minutes = minutes - int(hours)*60
+		timeStr= "%d hours, %d minutes"%(int(hours), int(minutes))
+	
+	return timeStr

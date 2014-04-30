@@ -232,6 +232,7 @@ if __name__ == "__main__":
 	""" Run through all the frames in the .dat file.
 	"""
 	for frameIndex in range(1, frameRange + 1):
+		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()
 		trueFrameNumber = startFrame + frameIndex - 1
 		wholeFrame = getNextFrame()
@@ -249,7 +250,7 @@ if __name__ == "__main__":
 		for c in channelNames:
 			trackingObjectString+= " " + c + ":" + str(len(allObjects[c]))
 		trackingObjectString+= " "
-		debug.write(timeLeftString + " Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) + " %d"%(int(completionPercent)) + "%] MJD:" + "%5.7f"%(wholeFrame['MJD'] ) + trackingObjectString + '\r', level = 2)
+		debug.write(timeLeftString + " Frame: [" + str(frameIndex) + "," + str(trueFrameNumber) +", " + str(framesToGo) + " %d"%(int(completionPercent)) + "%] MJD:" + "%5.7f"%(wholeFrame['MJD'] ) + trackingObjectString + '\r', level = 2)
 		
 		for channel in channelNames:
 			if (channel == 'b') & (trueFrameNumber % rdat.nblue != 0):      # This is an empty blue frame so skip it
@@ -267,7 +268,7 @@ if __name__ == "__main__":
 			for j in range(frameInfo.numWindows): 
 				windowImage = singleChannelFrame[j]
 				
-				tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, channel, windowImage)
+				tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, channel, windowImage, arg.runname)
 				catFilename = ultracamutils.runSex(tmpFilename)
 				newObjectsinWindow = ultracamutils.readSexObjects(catFilename)
 			

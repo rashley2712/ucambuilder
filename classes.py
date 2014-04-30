@@ -1,6 +1,7 @@
 import math, json, datetime
 import trm.ultracam
 import rashley_utils as utils
+import ultracamutils
 import numpy
 
 class dayObject:
@@ -21,7 +22,7 @@ class runObject:
 		self.runName = runName
 		config = utils.readConfigFile()
 		runPath = utils.addPaths(config.ULTRACAMRAW, date)
-		runPath = utils.addPaths(runPath, runName)
+		runPath = ultracamutils.addPaths(runPath, runName)
 		self.totalTime = 0
 		runMetaData = trm.ultracam.Rhead(runPath, server=False)
 		self.mode = runMetaData.mode
@@ -41,6 +42,10 @@ class runObject:
 		self.dec = 0
 		self.objectID = "?"
 		self.target = "?"
+		self.expose = 0
+		self.num = 0
+		
+		
 		
 	def updateRunInfo(self, object):
 		self.comment = object['comment']
@@ -48,6 +53,8 @@ class runObject:
 		self.dec = object['dec']
 		self.objectId = object['id']
 		self.target = object['target']
+		self.num = object['num']
+		self.expose = object['expose']
 		
 		
 	def __str__(self):
@@ -57,6 +64,9 @@ class runObject:
 		outStr+= "Mode: " + self.mode + "\n"
 		outStr+= "nBlue: " + str(self.nblue) + "\n"
 		outStr+= "Comments: " + str(self.comment) + "\n"
+		outStr+= "Num: " + str(self.num) + "\n"
+		outStr+= "Expose: " + str(self.expose) + "\n"
+		
 		return outStr
 		
 	def determineRunClass(self):
