@@ -384,13 +384,14 @@ def timedeltaHoursMinsSeconds(td):
 def writeFriendlyTimeMinutes(minutes):
 	""" Writes a friendly time (in hours and/or minutes) based on an input of minutes
 	"""
-	timeStr = str(int(minutes)) + " minutes"
+	timeStr = str(int(minutes)) + " minute"
 	if minutes > 60: 
 		hours = minutes/60.
-		print minutes
 		minutes = minutes - int(hours)*60
-		print hours
-		timeStr= "%d hours, %d minutes"%(int(hours), int(minutes))
+		timeStr= "%d hour"%(int(hours))
+		if int(hours)!=1: timeStr+="s";
+		timeStr+= ", %d minute"%(int(minutes))
+	if int(minutes)!=1: timeStr+="s";
 	
 	return timeStr
 
@@ -403,6 +404,9 @@ def writeFriendlyTimeSeconds(seconds):
 	if minutes > 60: 
 		hours = minutes/60.
 		minutes = minutes - int(hours)*60
-		timeStr= "%d hours, %d minutes"%(int(hours), int(minutes))
-	
+		timeStr= "%d hour"%(int(hours))
+		if int(hours)!=1: timeStr+="s";
+		timeStr+= ", %d minute"%(int(minutes))
+	if int(minutes)!=1: timeStr+="s";
+			
 	return timeStr

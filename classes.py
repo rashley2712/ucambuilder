@@ -5,20 +5,24 @@ import ultracamutils
 import numpy
 
 class dayObject:
-    """ This class stores metadata for a particular night's observing
+	""" This class stores metadata for a particular night's observing
 	"""
-    def __init__(self, date):
-        self.date = date
-        self.runs = []
-        self.totalTime = 0
-        self.totalFrames = 0
+	def __init__(self, date):
+		self.date = date
+		self.runs = []
+		self.totalTime = 0
+		self.totalFrames = 0
         
-    def addRun(self, runName):
-        run = runObject(self.date, runName)
-        self.runs.append(run)
+	def addRun(self, runName):
+		run = runObject(self.date, runName)
+		self.runs.append(run)
         
-    def getRuns(self):
+	def getRuns(self):
 		return self.runs
+	
+		
+	def setRuns(self, runData):
+		self.runs = runData
 
 class runObject:
 	def __init__(self, date, runName):

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import ultracamutils
-import sys, argparse, subprocess, re, os
+import jinja2
+import sys, argparse, subprocess, re, os, json
 import classes
 
 if __name__ == "__main__":
@@ -29,7 +30,7 @@ if __name__ == "__main__":
 	if not os.path.exists(outputDirectory):
 		debug.write("Creating the directory: " + outputDirectory)
 		os.mkdir(outputDirectory)
-
+		
 	debug.write("Arguments: " + str(arg))
 
 	""" Get a list of all of the .dat files in the folder. This is going to be our list of 'runs'
@@ -50,5 +51,70 @@ if __name__ == "__main__":
 			runName = m.group()[:6]
 			dayData.addRun(runName)
 
+	runData = []
 	for run in dayData.getRuns():
-		print run
+		runID = run.runName
+		runDate = arg.date
+		runname = ultracamutils.addPaths(runDate, runID)
+		runInfo = ultracamutils.getRunInfo(config.RUNINFO, runname)
+		runInfo.runDuration = ultracamutils.writeFriendlyTimeMinutes(runInfo.expose)
+	
+		# Check if the run has been processed (ie if the file runxxx_info.json exists)
+		runMetaDataFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + "_info.json"
+		print "Checking for meta-data (JSON) file at: ", runMetaDataFilename
+		if os.path.exists(runMetaDataFilename):
+			print "Run output exists!"
+			JSONfile = open(runMetaDataFilename, "r")
+			wholeFileString = JSONfile.read()
+			metaDataObject = json.loads(wholeFileString)
+			print metaDataObject
+			maxExtents = metaDataObject['maxExtents']
+			x1 = maxExtents[0]
+			x2 = maxExtents[1]
+			y1 = maxExtents[2]
+			y2 = maxExtents[3]
+			print (x1, y1, x2, y2)
+			
+			colours = ['r', 'g', 'b']
+			for c in colours:
+				imageFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + '_' + c + '.png'
+				thumbnailCommand = ["createthumbnail.py"]
+				thumbnailCommand.append(imageFilename)
+				thumbnailCommand.append("-c")     # Ask the thumbnail creator to crop the image to maxextents before scaling
+				thumbnailCommand.append("-x1" + str(x1))
+
+				print "Creating thumbnail" + str(thumbnailCommand)
+				subprocess.call(thumbnailCommand)
+	
+
+			
+		runData.append(runInfo)
+
+	dayData.setRuns(runData)
+	
+	# Initialise the Jinja environment
+	templateLoader = jinja2.FileSystemLoader(searchpath="/")
+	templateEnv = jinja2.Environment( loader=templateLoader )
+
+	# Read the template file using the environment object.
+	# This also constructs our Template object.
+	template = templateEnv.get_template(config.DAYTEMPLATE)
+	
+	
+	# Specify any input variables to the template as a dictionary.
+	templateVars = { 	"date" : arg.date,
+						"runs" : runData
+						 }
+	
+	
+	outputPath = ultracamutils.addPaths(config.SITE_PATH, arg.date)
+	outputFilename = "day-" + arg.date + ".html"
+	
+	fullFilename = ultracamutils.addPaths(outputPath, outputFilename)
+	outFile = open(fullFilename, "w")
+	outFile.write(template.render(templateVars))
+	outFile.close()
+
+	outputURL = config.ROOTURL + arg.date + "/" + outputFilename
+	print "Browse the page at: ", outputURL
+	
