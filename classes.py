@@ -16,6 +16,9 @@ class dayObject:
     def addRun(self, runName):
         run = runObject(self.date, runName)
         self.runs.append(run)
+        
+    def getRuns(self):
+		return self.runs
 
 class runObject:
 	def __init__(self, date, runName):
