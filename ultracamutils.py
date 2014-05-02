@@ -115,7 +115,8 @@ def runnameToUniqueID(runname):
 	""" Converts a runname to a unique ID number.
 	"""
 	retString = runname
-	if char in "-/run":
+	
+	for char in "-/run":
 		retString = retString.replace(char,'')
 	
 	return retString

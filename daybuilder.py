@@ -12,6 +12,7 @@ if __name__ == "__main__":
 	parser.add_argument('-d', '--debuglevel', default = 2, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames (default = all frames)')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
+	parser.add_argument('-r', '--buildruns', action='store_true', help='Build the run output for each run')
 	arg = parser.parse_args()
 
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -78,15 +79,22 @@ if __name__ == "__main__":
 			colours = ['r', 'g', 'b']
 			for c in colours:
 				imageFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + '_' + c + '.png'
+				outputFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + '_' + c + '_thumb.png'
+
 				thumbnailCommand = ["createthumbnail.py"]
 				thumbnailCommand.append(imageFilename)
-				thumbnailCommand.append("-c")     # Ask the thumbnail creator to crop the image to maxextents before scaling
-				thumbnailCommand.append("-x1" + str(x1))
-
-				print "Creating thumbnail" + str(thumbnailCommand)
+				thumbnailCommand.append("--autocrop")
+				thumbnailCommand.append("-w")
+				thumbnailCommand.append("128")
+				thumbnailCommand.append("-o")
+				thumbnailCommand.append(outputFilename)
+				
+				debug.write("Creating thumbnail" + str(thumbnailCommand))
 				subprocess.call(thumbnailCommand)
 	
-
+			runInfo.thumbnailURI = runID + '_r_thumb.png'
+		else:
+			runInfo.thumbnailURI = "../default_thumbnail.png"
 			
 		runData.append(runInfo)
 

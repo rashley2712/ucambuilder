@@ -14,14 +14,20 @@ if __name__ == "__main__":
 	parser.add_argument('-xu', default=1080, type=int, help='upper x extent (for crop, if requested) - default is 1080')
 	parser.add_argument('-yl', default=1, type=int, help='lower y extent (for crop, if requested) - default is 1')
 	parser.add_argument('-yu', default=1040, type=int, help='upper y extent (for crop, if requested) - default is 1040')
+	parser.add_argument('-o', '--output', type=str, help='Output file name. If left out, ".thumb" will be added before the .png extension')
+	parser.add_argument('--flip', action='store_true', help='Flip the y-axis for cropping.')
+	parser.add_argument('--autocrop', action='store_true', help='Perform an autocrop for non-zero pixels.')
 	arg = parser.parse_args()
 
 	if (arg.height==None): arg.height = arg.width
-	size = (arg.width, arg.height)
+	thumbSize = (arg.width, arg.height)
 	print "Opening file: ", arg.input
-	outputFilename = arg.input[:len(arg.input)-4] + ".thumb.png"
-	print "output: ", outputFilename
-	
+	if (arg.output==None):
+		outputFilename = arg.input[:len(arg.input)-4] + ".thumb.png"
+		print "auto generated output filename: ", outputFilename
+	else:
+		outputFilename = arg.output
+		
 	image = Image.open(arg.input)
 	
 	# Perform the 'crop'
@@ -31,7 +37,13 @@ if __name__ == "__main__":
 		croppedImage = image.crop(extents)
 		image = croppedImage
 	
-	print "Finished crop"
-	print "New size: ", size
-	image.thumbnail(size, Image.ANTIALIAS)
-	image.save(outputFilenamye, "PNG")
+	if (arg.autocrop):
+		print "Auto cropping to bounding box: ", image.getbbox()
+		croppedImage = image.crop(image.getbbox())
+		image = croppedImage
+	
+	print "New size: ", thumbSize
+	image.thumbnail(thumbSize, Image.ANTIALIAS)
+	image.save(outputFilename, "PNG")
+	
+	print "Your thumbnail is ready at:", outputFilename
