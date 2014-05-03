@@ -27,6 +27,7 @@ class dayObject:
 class runObject:
 	def __init__(self, date, runName):
 		self.runName = runName
+		self.runDate = date
 		config = utils.readConfigFile()
 		runPath = utils.addPaths(config.ULTRACAMRAW, date)
 		runPath = ultracamutils.addPaths(runPath, runName)

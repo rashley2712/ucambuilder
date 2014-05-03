@@ -59,6 +59,20 @@ if __name__ == "__main__":
 		runname = ultracamutils.addPaths(runDate, runID)
 		runInfo = ultracamutils.getRunInfo(config.RUNINFO, runname)
 		runInfo.runDuration = ultracamutils.writeFriendlyTimeMinutes(runInfo.expose)
+
+		if (arg.buildruns):
+			print run
+			
+			runbuilderCommand = ["runbuilder.py"]
+			runbuilderCommand.append(run.runDate + "/" + run.runName)
+			if (arg.numframes!=None):
+				runbuilderCommand.append("-n")
+				runbuilderCommand.append(arg.numframes)
+			
+			
+			debug.write("Running runbuilder with:" + str(runbuilderCommand))
+			subprocess.call(runbuilderCommand)
+
 	
 		# Check if the run has been processed (ie if the file runxxx_info.json exists)
 		runMetaDataFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + "_info.json"
@@ -93,13 +107,16 @@ if __name__ == "__main__":
 				subprocess.call(thumbnailCommand)
 	
 			runInfo.thumbnailURI = runID + '_r_thumb.png'
+			runInfo.runURL =  runID + ".html" 
 		else:
 			runInfo.thumbnailURI = "../default_thumbnail.png"
+			runInfo.runURL = ""
 			
 		runData.append(runInfo)
 
 	dayData.setRuns(runData)
-	
+
+
 	# Initialise the Jinja environment
 	templateLoader = jinja2.FileSystemLoader(searchpath="/")
 	templateEnv = jinja2.Environment( loader=templateLoader )
@@ -125,4 +142,6 @@ if __name__ == "__main__":
 
 	outputURL = config.ROOTURL + arg.date + "/" + outputFilename
 	print "Browse the page at: ", outputURL
+	
+
 	
