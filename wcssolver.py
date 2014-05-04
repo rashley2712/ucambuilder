@@ -160,7 +160,7 @@ if __name__ == "__main__":
 			#solvefieldCommand.append("-e1024")
 			solvefieldCommand.append("--overwrite")
 			solvefieldCommand.append("-L5")
-			#solvefieldCommand.append("-H11")
+			solvefieldCommand.append("-H11")
 			solvefieldCommand.append("-uamw")
 			solvefieldCommand.append("--ra")
 			solvefieldCommand.append(str(runInfo.ra*15.))

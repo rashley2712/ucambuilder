@@ -26,7 +26,7 @@ class dayObject:
 
 class runObject:
 	def __init__(self, date, runName):
-		self.runName = runName
+		self.runID = runName
 		self.runDate = date
 		config = utils.readConfigFile()
 		runPath = utils.addPaths(config.ULTRACAMRAW, date)
@@ -54,7 +54,6 @@ class runObject:
 		self.num = 0
 		
 		
-		
 	def updateRunInfo(self, object):
 		self.comment = object['comment']
 		self.ra = object['ra']
@@ -63,10 +62,18 @@ class runObject:
 		self.target = object['target']
 		self.num = object['num']
 		self.expose = object['expose']
+
+	def writeToJSON(self):
+		""" Writes itself to a JSON file in the web folder 
+		"""
+		JSONFilename = ultracamutils.addPaths(config.SITE_PATH, self.runDate)
+		JSONFilename = ultracamutils.addPaths(JSONFilename, self.runID)
+		print "Writing to: ", JSONFilename
 		
 		
 	def __str__(self):
-		outStr = "RunName: " + self.runName + "\n"
+		outStr = "RunID: " + self.runID + "\n"
+		outStr = "Date: " + self.runDate + "\n"
 		outStr+= "Target: " + self.target + " RA:" + str(self.ra) + " DEC: " + str(self.dec) + "\n"
 		outStr+= "Frames: " + str(self.numFrames) + "\n"
 		outStr+= "Mode: " + self.mode + "\n"

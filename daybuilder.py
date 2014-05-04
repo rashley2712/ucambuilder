@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
 	runData = []
 	for run in dayData.getRuns():
-		runID = run.runName
+		runID = run.runID
 		runDate = arg.date
 		runname = ultracamutils.addPaths(runDate, runID)
 		runInfo = ultracamutils.getRunInfo(config.RUNINFO, runname)
