@@ -6,7 +6,7 @@ import matplotlib.pyplot, numpy, math
 import Image, ImageDraw
 import ultracamutils
 import classes, wcsclasses
-import os, subprocess, sys
+import os, subprocess, sys, json
 
 if __name__ == "__main__":
 	
@@ -106,14 +106,32 @@ if __name__ == "__main__":
 			xmax = math.ceil(xmax) + 2
 			ymin = math.floor(ymin) - 2
 			ymax = math.ceil(ymax) + 2
-		width = xmax - xmin
-		height = ymax - ymin
+		width = xmax - xmin + 10
+		height = ymax - ymin + 10
 		extents = (width, height)
 		allExtents[c] = extents
 		debug.write("%s max extents (%d, %d, %d, %d)"%(channelDescriptions[c], xmin, xmax, ymin, ymax))
 		catalog.close()
 
 	print allExtents	
+	
+	""" Another way to get these extents is from the run info file created by objectdbcreator.py 
+	"""
+	metaInfoFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname) + '_info.json'
+	metaInfoFile = open(metaInfoFilename, "r")
+
+	metaInfoJSONData = metaInfoFile.read()
+	
+	metaInfoObject = json.loads(metaInfoJSONData)
+	print metaInfoObject
+	#maxExtents = metaInfoObject.maxExtents
+	data = metaInfoObject['Target']
+	extents = metaInfoObject['maxExtents']
+	print extents
+	width = extents[1] - extents [0] + 1
+	height = extents[3] - extents[2] + 1
+	print "(%d, %d)"%(width, height)
+	metaInfoFile.close()
 		
 	"""
 	headers = sexCatalog["LDAC_OBJECTS"].header
@@ -138,9 +156,11 @@ if __name__ == "__main__":
 			width, height = allExtents[c]
 			solvefieldCommand.append("-w" + str(width))
 			solvefieldCommand.append("-e" + str(height))
+			#solvefieldCommand.append("-w1024")
+			#solvefieldCommand.append("-e1024")
 			solvefieldCommand.append("--overwrite")
 			solvefieldCommand.append("-L5")
-			solvefieldCommand.append("-H10")
+			#solvefieldCommand.append("-H11")
 			solvefieldCommand.append("-uamw")
 			solvefieldCommand.append("--ra")
 			solvefieldCommand.append(str(runInfo.ra*15.))
@@ -149,8 +169,9 @@ if __name__ == "__main__":
 			solvefieldCommand.append("--radius")
 			solvefieldCommand.append(str(1))
 			solvefieldCommand.append("-t3")
+			solvefieldCommand.append("-g")
 			solvefieldCommand.append("--no-plots")
-	
+			debug.write("Solving field with the command: " + str(solvefieldCommand))
 			subprocess.call(solvefieldCommand)
 		else:
 			debug.write("Skipping the %s channel as it appears to be solved"%(channelDescriptions[c]), level = 2)
