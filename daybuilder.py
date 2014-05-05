@@ -12,7 +12,8 @@ if __name__ == "__main__":
 	parser.add_argument('-d', '--debuglevel', default = 2, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames (default = all frames)')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
-	parser.add_argument('-r', '--buildruns', action='store_true', help='Build the run output for each run')
+	parser.add_argument('-r', '--buildruns', action='store_true', help='Build the run output for each run (if no existing output found)')
+	parser.add_argument('-f', '--forcebuildruns', action='store_true', help='Force build of each run (even if existing data is found)')
 	arg = parser.parse_args()
 
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -23,7 +24,7 @@ if __name__ == "__main__":
 	if arg.numframes!=None:
 		numFrames = arg.numframes
 
-	""" First check if a directory is made for the output files in the ucamsite folder and create one. 
+	""" First check if a directory for the output files exists in the ucamsite folder and if not, create one. 
 	"""
 	
 	outputDirectory = ultracamutils.addPaths(config.SITE_PATH, arg.date)
@@ -43,28 +44,47 @@ if __name__ == "__main__":
 
 	fileList = filer.communicate()[0].split('\n')
 
-	dayData = classes.dayObject(arg.date)
-
+	runList = []
 	runs_re = re.compile("run[0-9][0-9][0-9].xml")
 	for i, f in enumerate(fileList):
 		m = runs_re.match(f)
 		if (m): 
 			runName = m.group()[:6]
-			dayData.addRun(runName)
+			runList.append(runName)
+			
+	debug.write("This is the list of runs found in the folder for the date %s: %s"%(arg.date, str(runList)))
 
 	runData = []
-	for run in dayData.getRuns():
+
+	for runID in runList:
+		newRun = classes.runObject(arg.date, runID)
+		newRun.loadSelf(config.SITE_PATH)
+		if newRun.ra == 0:
+			# Failed to get info from local file.... go to Tom's ultra.json file for some meta-data
+			runname = ultracamutils.addPaths(arg.date, runID)
+			additionalRunInfo = ultracamutils.readULTRAJSON(config.RUNINFO, runname)
+			print "Falling back to:", runInfo
+	
+		#newRun.writeSelf(config.SITE_PATH)
+		runData.append(newRun)
+	
+	for run in runData:
 		runID = run.runID
 		runDate = arg.date
 		runname = ultracamutils.addPaths(runDate, runID)
 		runInfo = ultracamutils.getRunInfo(config.RUNINFO, runname)
 		runInfo.runDuration = ultracamutils.writeFriendlyTimeMinutes(runInfo.expose)
 
+		# Check if the run has been processed (ie if the file runxxx_info.json exists)
+		runMetaDataFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + "_info.json"
+		print "Checking for meta-data (JSON) file: ", runMetaDataFilename
+
+
+
 		if (arg.buildruns):
-			print run
 			
 			runbuilderCommand = ["runbuilder.py"]
-			runbuilderCommand.append(run.runDate + "/" + run.runName)
+			runbuilderCommand.append(run.runDate + "/" + run.runID)
 			if (arg.numframes!=None):
 				runbuilderCommand.append("-n")
 				runbuilderCommand.append(arg.numframes)
@@ -76,7 +96,7 @@ if __name__ == "__main__":
 	
 		# Check if the run has been processed (ie if the file runxxx_info.json exists)
 		runMetaDataFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + "_info.json"
-		print "Checking for meta-data (JSON) file at: ", runMetaDataFilename
+		print "Checking for meta-data (JSON) file gat: ", runMetaDataFilename
 		if os.path.exists(runMetaDataFilename):
 			print "Run output exists!"
 			JSONfile = open(runMetaDataFilename, "r")
@@ -133,7 +153,7 @@ if __name__ == "__main__":
 	
 	
 	outputPath = ultracamutils.addPaths(config.SITE_PATH, arg.date)
-	outputFilename = "day-" + arg.date + ".html"
+	outputFilename = "index.html"
 	
 	fullFilename = ultracamutils.addPaths(outputPath, outputFilename)
 	outFile = open(fullFilename, "w")

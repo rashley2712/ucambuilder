@@ -48,6 +48,8 @@ if __name__ == "__main__":
 	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
 	outputFilename+= ".html"
 	
+	debug.write("Writing HTML file to: %s"%(outputFilename))
+	
 	outFile = open(outputFilename, "w")
 	outFile.write(template.render(templateVars))
 	outFile.close()

@@ -46,7 +46,7 @@ if __name__ == "__main__":
 
 	subprocess.call(["mergecolours.py", arg.runname, dString])
 
-	subprocess.call(["create_html.py", arg.runname])
+	subprocess.call(["create_html.py", arg.runname, dString])
 	
 	outputURL = ultracamutils.addPaths(config.ROOTURL, arg.runname + ".html")
 	print "The output for this run is available at: %s"%outputURL

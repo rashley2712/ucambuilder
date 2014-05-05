@@ -1,4 +1,4 @@
-import math, json, datetime
+import math, json, datetime, os
 import trm.ultracam
 import rashley_utils as utils
 import ultracamutils
@@ -52,23 +52,60 @@ class runObject:
 		self.target = "?"
 		self.expose = 0
 		self.num = 0
+		self.dataProcessed = False
 		
+	def loadSelf(self, sitepath):
+		""" Checks to see if a saved file exists that contains info for this run. Loads it into this object.
+		"""
+		filename = ultracamutils.addPaths(sitepath, self.runDate)
+		filename = ultracamutils.addPaths(filename, self.runID)
+		filename+= "_info.json"
+		print "Trying to load myself from a file.", filename
+		if os.path.exists(filename):
+			JSONfile = open(filename, "r")
+			wholeFileString = JSONfile.read()
+			parsedObject = json.loads(wholeFileString)
+			self.comment = parsedObject["Comment"]
+			self.target = parsedObject["Target"]
+			self.ra = parsedObject["RA"]
+			self.dec = parsedObject["DEC"]
+			self.objectID = parsedObject["ObjectID"]
+			self.expose = parsedObject["Expose"]
+			self.ID = parsedObject["ID"]
+		else: 
+			print "Not found"
+			
 		
 	def updateRunInfo(self, object):
 		self.comment = object['comment']
 		self.ra = object['ra']
 		self.dec = object['dec']
-		self.objectId = object['id']
+		self.objectID = object['id']
 		self.target = object['target']
 		self.num = object['num']
 		self.expose = object['expose']
 
-	def writeToJSON(self):
+	def writeSelf(self, sitepath):
 		""" Writes itself to a JSON file in the web folder 
 		"""
-		JSONFilename = ultracamutils.addPaths(config.SITE_PATH, self.runDate)
-		JSONFilename = ultracamutils.addPaths(JSONFilename, self.runID)
-		print "Writing to: ", JSONFilename
+		filename = ultracamutils.addPaths(sitepath, self.runDate)
+		filename = ultracamutils.addPaths(filename, self.runID)
+		filename+= "_info.json"
+		print "Updating runinfo in file: ", filename
+		outputObject = {}
+		outputObject["Target"] = self.target
+		outputObject["Date"] = self.runDate
+		outputObject["ID"] = self.runID
+		outputObject["Comment"] = self.comment
+		outputObject["RA"] = self.ra
+		outputObject["DEC"] = self.dec
+		outputObject["Expose"] = self.expose
+		outputObject["ObjectID"] = self.objectId
+		outputObject["Data Processed"] = self.dataProcessed
+		JSONfile = open(filename, 'w')
+		json.dump(outputObject, JSONfile)
+		JSONfile.close()
+		
 		
 		
 	def __str__(self):

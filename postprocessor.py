@@ -97,7 +97,7 @@ if (__name__ == "__main__"):
 			sortedObjects = sorted(objects, key= lambda p:p.meanFlux, reverse=True)
 			x_values, IDs, y_values, fluxes = [], [], [], []
 		
-			maxFlux = sortedObjects[1].meanFlux
+			maxFlux = sortedObjects[0].meanFlux
 			fluxThreshold = maxFlux/10000.
 			debug.write("Max flux:" + str(maxFlux) + "Theshold:" + str(fluxThreshold))
 			
@@ -130,51 +130,6 @@ if (__name__ == "__main__"):
 			thdulist = astropy.io.fits.HDUList([prihdu, tbhdu])
 			thdulist.writeto(FITSFilename, clobber=True)
 
-
-
-	""" For each object in the red channel try to find a match in the other two channels
-	
-	
-	debug.write("Checking the red objects...", level=2)
-	
-	colourObjectList = []
-	
-	for object in redObjects:
-		debug.write(str(object))
-		meanPosition = object.meanPosition
-		debug.write("Mean position: " + str(meanPosition))
-		newIDNumber = ultracamutils.getUniqueID(colourObjectList)
-		colourObject = classes.combined3ColourObject(newIDNumber)
-		colourObject.setRedObject(object)
-
-		smallestDistance = 1000
-		nearestObject = greenObjects[0]
-		for g in greenObjects:
-			distance = ultracamutils.measureDistance(g.meanPosition, meanPosition)
-			if distance < smallestDistance: 
-				smallestDistance = distance
-				nearestObject = g
-		debug.write("Most likely match is %s at a distance of %f"%(str(nearestObject),smallestDistance), level=3)
-		if (smallestDistance>float(config.MINPIXELDISTANCE)):
-			debug.write("Match rejected... too far apart!")
-		else: 
-			colourObject.setGreenObject(nearestObject)
-
-		smallestDistance = 1000
-		nearestObject = blueObjects[0]
-		for b in blueObjects:
-			distance = ultracamutils.measureDistance(b.meanPosition, meanPosition)
-			if distance < smallestDistance: 
-				smallestDistance = distance
-				nearestObject = b
-		debug.write("Most likely match is %s at a distance of %f"%(str(nearestObject),smallestDistance), level=3)
-		if (smallestDistance>float(config.MINPIXELDISTANCE)):
-			debug.write("Match rejected... too far apart!")
-		else:
-			colourObject.setBlueObject(nearestObject)
-
-		colourObjectList.append(colourObject)		
-	"""
 		
 if (int(config.WRITE_JSON)==1):
 	for c in channels:
