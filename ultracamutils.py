@@ -46,28 +46,6 @@ def getRunInfo(filename, runIdent):
 			
 	return run
 	
-def readULTRAJSON(filename, runIdent):
-	""" Read some info from Tom's ultra.json file and passes it back as a simple dictionary object
-	"""
-	JSONfile = open(filename, "r")
-
-	allObjectsJSON = json.load(JSONfile)
-
-	(runDate, runID) = separateRunNameAndDate(runIdent)
-
-	run = {}
-	
-	runNumberStr = runID[3:]
-	runNumber = int(runNumberStr)
-	
-	for object in allObjectsJSON:
-		date = object['night']
-		num = object['num']
-		if ((date == runDate) & (runNumber == num)):
-			run.updateRunInfo(object)
-			
-	return run
-
     
 def getRunMetaData(runName):
     """ Opens an Ultracam raw file and gets some metadata from it

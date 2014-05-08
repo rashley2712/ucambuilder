@@ -57,16 +57,18 @@ if __name__ == "__main__":
 	runData = []
 
 	for runID in runList:
+		debug.write("Building meta-data for run:" + runID)
 		newRun = classes.runObject(arg.date, runID)
 		newRun.loadSelf(config.SITE_PATH)
-		if newRun.ra == 0:
-			# Failed to get info from local file.... go to Tom's ultra.json file for some meta-data
-			runname = ultracamutils.addPaths(arg.date, runID)
-			additionalRunInfo = ultracamutils.readULTRAJSON(config.RUNINFO, runname)
-			print "Falling back to:", runInfo
-	
+		newRun.mergeULTRAJSON(config.RUNINFO)
+		if newRun.comment=="":
+			newRun.checkForComments(config.ULTRACAMRAW)
 		#newRun.writeSelf(config.SITE_PATH)
+		print newRun
 		runData.append(newRun)
+	
+	
+	sys.exit()
 	
 	for run in runData:
 		runID = run.runID

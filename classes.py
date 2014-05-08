@@ -65,15 +65,44 @@ class runObject:
 			JSONfile = open(filename, "r")
 			wholeFileString = JSONfile.read()
 			parsedObject = json.loads(wholeFileString)
-			self.comment = parsedObject["Comment"]
-			self.target = parsedObject["Target"]
-			self.ra = parsedObject["RA"]
-			self.dec = parsedObject["DEC"]
-			self.objectID = parsedObject["ObjectID"]
-			self.expose = parsedObject["Expose"]
-			self.ID = parsedObject["ID"]
+			for key in parsedObject.keys():
+				print "Setting property:", key, parsedObject[key]
+				setattr(self,key,parsedObject[key])
 		else: 
 			print "Not found"
+			
+	def mergeULTRAJSON(self, ultrajsonFilename):
+		""" Looks in Tom's ultra.json file and gets the data there. Merges it with this object
+		"""
+		JSONfile = open(ultrajsonFilename, "r")
+		allObjectsJSON = json.load(JSONfile)
+		run = {}
+		runNumberStr = self.runID[3:]
+		runNumber = int(runNumberStr)
+	
+		for object in allObjectsJSON:
+			date = object['night']
+			num = object['num']
+			if ((date == self.runDate) & (runNumber == num)):
+				self.comment = object["comment"]
+				self.ra = object['ra']
+				self.dec = object['dec']
+				self.objectID = object['id']
+				self.target = object['target']
+				self.num = object['num']
+				self.expose = object['expose']
+			
+	def checkForComments(self, rawDataPath):
+		""" Does a check for comments in the DDDD-MM-YY.dat file in the raw data path
+		"""
+		filename = ultracamutils.addPaths(rawDataPath, self.runDate)
+		filename = ultracamutils.addPaths(filename, self.runDate) + '.dat'
+		dataFile = open(filename, 'r')
+		
+		for line in dataFile:
+			runIdentifier = line[:6]
+			if (runIdentifier==self.runID):
+				self.comment = line[9:]
 			
 		
 	def updateRunInfo(self, object):
@@ -93,15 +122,15 @@ class runObject:
 		filename+= "_info.json"
 		print "Updating runinfo in file: ", filename
 		outputObject = {}
-		outputObject["Target"] = self.target
-		outputObject["Date"] = self.runDate
-		outputObject["ID"] = self.runID
-		outputObject["Comment"] = self.comment
-		outputObject["RA"] = self.ra
-		outputObject["DEC"] = self.dec
-		outputObject["Expose"] = self.expose
-		outputObject["ObjectID"] = self.objectId
-		outputObject["Data Processed"] = self.dataProcessed
+		outputObject["target"] = self.target
+		outputObject["date"] = self.runDate
+		outputObject["runID"] = self.runID
+		outputObject["comment"] = self.comment
+		outputObject["ra"] = self.ra
+		outputObject["dec"] = self.dec
+		outputObject["expose"] = self.expose
+		outputObject["objectID"] = self.objectId
+		outputObject["dataProcessed"] = self.dataProcessed
 		JSONfile = open(filename, 'w')
 		json.dump(outputObject, JSONfile)
 		JSONfile.close()
