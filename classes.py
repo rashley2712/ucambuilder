@@ -53,11 +53,13 @@ class runObject:
 		self.expose = 0
 		self.num = 0
 		self.dataProcessed = False
+		self.numWindows = 0
+		self.maxExtents = [0, 0, 0, 0]
 		
-	def loadSelf(self, sitepath):
+	def loadSelf(self, configData):
 		""" Checks to see if a saved file exists that contains info for this run. Loads it into this object.
 		"""
-		filename = ultracamutils.addPaths(sitepath, self.runDate)
+		filename = ultracamutils.addPaths(configData.SITE_PATH, self.runDate)
 		filename = ultracamutils.addPaths(filename, self.runID)
 		filename+= "_info.json"
 		print "Trying to load myself from a file.", filename
@@ -69,7 +71,9 @@ class runObject:
 				print "Setting property:", key, parsedObject[key]
 				setattr(self,key,parsedObject[key])
 		else: 
-			print "Not found"
+			print "Not found... falling back to ultra.json"
+			self.mergeULTRAJSON(configData.RUNINFO)
+			
 			
 	def mergeULTRAJSON(self, ultrajsonFilename):
 		""" Looks in Tom's ultra.json file and gets the data there. Merges it with this object
@@ -114,13 +118,14 @@ class runObject:
 		self.num = object['num']
 		self.expose = object['expose']
 
-	def writeSelf(self, sitepath):
+	def writeSelf(self, configData):
 		""" Writes itself to a JSON file in the web folder 
 		"""
-		filename = ultracamutils.addPaths(sitepath, self.runDate)
+		filename = ultracamutils.addPaths(configData.SITE_PATH, self.runDate)
 		filename = ultracamutils.addPaths(filename, self.runID)
 		filename+= "_info.json"
 		print "Updating runinfo in file: ", filename
+		
 		outputObject = {}
 		outputObject["target"] = self.target
 		outputObject["date"] = self.runDate
@@ -129,12 +134,14 @@ class runObject:
 		outputObject["ra"] = self.ra
 		outputObject["dec"] = self.dec
 		outputObject["expose"] = self.expose
-		outputObject["objectID"] = self.objectId
+		outputObject["objectID"] = self.objectID
 		outputObject["dataProcessed"] = self.dataProcessed
+		outputObject['numWindows'] = self.numWindows
+		outputObject['maxExtents'] = self.maxExtents
+		
 		JSONfile = open(filename, 'w')
 		json.dump(outputObject, JSONfile)
 		JSONfile.close()
-		
 		
 		
 	def __str__(self):

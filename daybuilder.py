@@ -59,29 +59,19 @@ if __name__ == "__main__":
 	for runID in runList:
 		debug.write("Building meta-data for run:" + runID)
 		newRun = classes.runObject(arg.date, runID)
-		newRun.loadSelf(config.SITE_PATH)
-		newRun.mergeULTRAJSON(config.RUNINFO)
+		newRun.loadSelf(config)
 		if newRun.comment=="":
 			newRun.checkForComments(config.ULTRACAMRAW)
-		#newRun.writeSelf(config.SITE_PATH)
-		print newRun
+		debug.write(newRun, level = 2)
+		newRun.writeSelf(config)
 		runData.append(newRun)
 	
 	
-	sys.exit()
-	
 	for run in runData:
 		runID = run.runID
-		runDate = arg.date
+		runDate = run.runDate
 		runname = ultracamutils.addPaths(runDate, runID)
-		runInfo = ultracamutils.getRunInfo(config.RUNINFO, runname)
-		runInfo.runDuration = ultracamutils.writeFriendlyTimeMinutes(runInfo.expose)
-
-		# Check if the run has been processed (ie if the file runxxx_info.json exists)
-		runMetaDataFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + "_info.json"
-		print "Checking for meta-data (JSON) file: ", runMetaDataFilename
-
-
+		run.runDuration = ultracamutils.writeFriendlyTimeMinutes(run.expose)
 
 		if (arg.buildruns):
 			
@@ -89,29 +79,11 @@ if __name__ == "__main__":
 			runbuilderCommand.append(run.runDate + "/" + run.runID)
 			if (arg.numframes!=None):
 				runbuilderCommand.append("-n")
-				runbuilderCommand.append(arg.numframes)
-			
-			
+				runbuilderCommand.append(str(arg.numframes))
+						
 			debug.write("Running runbuilder with:" + str(runbuilderCommand))
 			subprocess.call(runbuilderCommand)
 
-	
-		# Check if the run has been processed (ie if the file runxxx_info.json exists)
-		runMetaDataFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + "_info.json"
-		print "Checking for meta-data (JSON) file gat: ", runMetaDataFilename
-		if os.path.exists(runMetaDataFilename):
-			print "Run output exists!"
-			JSONfile = open(runMetaDataFilename, "r")
-			wholeFileString = JSONfile.read()
-			metaDataObject = json.loads(wholeFileString)
-			print metaDataObject
-			maxExtents = metaDataObject['maxExtents']
-			x1 = maxExtents[0]
-			x2 = maxExtents[1]
-			y1 = maxExtents[2]
-			y2 = maxExtents[3]
-			print (x1, y1, x2, y2)
-			
 			colours = ['r', 'g', 'b']
 			for c in colours:
 				imageFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + '_' + c + '.png'
@@ -128,15 +100,11 @@ if __name__ == "__main__":
 				debug.write("Creating thumbnail" + str(thumbnailCommand))
 				subprocess.call(thumbnailCommand)
 	
-			runInfo.thumbnailURI = runID + '_r_thumb.png'
-			runInfo.runURL =  runID + ".html" 
+			run.thumbnailURI = runID + '_r_thumb.png'
+			run.runURL =  runID + ".html" 
 		else:
-			runInfo.thumbnailURI = "../default_thumbnail.png"
-			runInfo.runURL = ""
-			
-		runData.append(runInfo)
-
-	dayData.setRuns(runData)
+			run.thumbnailURI = "../default_thumbnail.png"
+			run.runURL = ""
 
 
 	# Initialise the Jinja environment
@@ -162,7 +130,7 @@ if __name__ == "__main__":
 	outFile.write(template.render(templateVars))
 	outFile.close()
 
-	outputURL = config.ROOTURL + arg.date + "/" + outputFilename
+	outputURL = ultracamutils.addPaths(config.ROOTURL, arg.date) + "/" + outputFilename
 	print "Browse the page at: ", outputURL
 	
 

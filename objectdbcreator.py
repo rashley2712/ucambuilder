@@ -180,8 +180,12 @@ if __name__ == "__main__":
 
 	debug.write("Opening the Ultracam raw file at: " + runFilename, level = 3)
 	
-	debug.write("Getting run info from the file:" + config.RUNINFO, level = 1)
-	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
+	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
+	runInfo = classes.runObject(runDate, runID)
+	runInfo.loadSelf(config)
+	
+	#debug.write("Getting run info from the file:" + config.RUNINFO, level = 1)
+	#runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
 	
 	debug.write("Run Info:\n----------------------", level = 2)
 	debug.write(runInfo, level = 2)
@@ -383,16 +387,10 @@ if __name__ == "__main__":
 			json.dump(allChannelObjects, outputfile)
 			outputfile.close()
 
-		""" Now write out some meta-data on the run, such as window dimensions, etc
+		""" Now write out some meta-data on the run, using the in-built runObject class methods
 		"""
-		outputFilename = utils.addPaths(config.SITE_PATH,runIdent) 
-		outputFilename+= "_info.json"
-		outputData = {}
-		outputData['Target'] = runInfo.target
+		runInfo.numWindows = frameInfo.numWindows
 		xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
-		outputData['numWindows'] = frameInfo.numWindows
-		outputData['maxExtents'] = [xmin, xmax, ymin, ymax]
+		runInfo.maxExtents = [xmin, xmax, ymin, ymax]
 		
-		outputfile = open( outputFilename, "w" )
-		json.dump(outputData, outputfile)
-		outputfile.close()
+		runInfo.writeSelf(config)
