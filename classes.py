@@ -68,13 +68,11 @@ class runObject:
 			wholeFileString = JSONfile.read()
 			parsedObject = json.loads(wholeFileString)
 			for key in parsedObject.keys():
-				print "Setting property:", key, parsedObject[key]
 				setattr(self,key,parsedObject[key])
 		else: 
-			print "Not found... falling back to ultra.json"
 			self.mergeULTRAJSON(configData.RUNINFO)
 			
-			
+	
 	def mergeULTRAJSON(self, ultrajsonFilename):
 		""" Looks in Tom's ultra.json file and gets the data there. Merges it with this object
 		"""
