@@ -22,8 +22,10 @@ if (__name__ == "__main__"):
 	runName = arg.runname
 
 	debug = classes.debugObject(arg.debuglevel)
-	debug.write("Getting run info from the file:" + config.RUNINFO, level = 2)
-	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
+	
+	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
+	runInfo = classes.runObject(runDate, runID)
+	runInfo.loadSelf(config)
 	
 	debug.write("Run Info:\n----------------------", level = 2)
 	debug.write(runInfo, level = 2)

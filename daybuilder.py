@@ -84,9 +84,10 @@ if __name__ == "__main__":
 			debug.write("Running runbuilder with:" + str(runbuilderCommand))
 			subprocess.call(runbuilderCommand)
 
-			colours = ['r', 'g', 'b']
-			for c in colours:
-				imageFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + '_' + c + '.png'
+		colours = ['r', 'g', 'b']
+		for c in colours:
+			imageFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + '_' + c + '.png'
+			if os.path.exists(imageFilename):
 				outputFilename = ultracamutils.addPaths(config.SITE_PATH, runname) + '_' + c + '_thumb.png'
 
 				thumbnailCommand = ["createthumbnail.py"]
@@ -96,16 +97,16 @@ if __name__ == "__main__":
 				thumbnailCommand.append("128")
 				thumbnailCommand.append("-o")
 				thumbnailCommand.append(outputFilename)
-				
+					
 				debug.write("Creating thumbnail" + str(thumbnailCommand))
 				subprocess.call(thumbnailCommand)
+		
+				run.thumbnailURI = runID + '_r_thumb.png'
+				run.runURL =  runID + ".html" 
+			else:
+				run.thumbnailURI = "../default_thumbnail.png"
+				run.runURL = ""
 	
-			run.thumbnailURI = runID + '_r_thumb.png'
-			run.runURL =  runID + ".html" 
-		else:
-			run.thumbnailURI = "../default_thumbnail.png"
-			run.runURL = ""
-
 
 	# Initialise the Jinja environment
 	templateLoader = jinja2.FileSystemLoader(searchpath="/")
