@@ -115,23 +115,23 @@ if __name__ == "__main__":
 
 	print allExtents	
 	
-	""" Another way to get these extents is from the run info file created by objectdbcreator.py 
+	""" Read info for the run from the .json file 
 	"""
-	metaInfoFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname) + '_info.json'
-	metaInfoFile = open(metaInfoFilename, "r")
-
-	metaInfoJSONData = metaInfoFile.read()
+	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
+	runInfo = classes.runObject(runDate, runID)
+	runInfo.loadSelf(config)
 	
-	metaInfoObject = json.loads(metaInfoJSONData)
-	print metaInfoObject
-	#maxExtents = metaInfoObject.maxExtents
-	data = metaInfoObject['Target']
-	extents = metaInfoObject['maxExtents']
+	debug.write("Run Info:\n----------------------", level = 2)
+	debug.write(runInfo, level = 2)
+	debug.write("----------------------", level = 2)
+
+	extents = runInfo.maxExtents
+
 	print extents
 	width = extents[1] - extents [0] + 1
 	height = extents[3] - extents[2] + 1
+
 	print "(%d, %d)"%(width, height)
-	metaInfoFile.close()
 		
 	"""
 	headers = sexCatalog["LDAC_OBJECTS"].header

@@ -22,10 +22,14 @@ if __name__ == "__main__":
 	
 	date, runID = ultracamutils.separateRunNameAndDate(arg.runname)
 	
-	""" Read info about the run 
+	""" Get info about the run 
 	"""
-	debug.write("Getting run info from the file:" + config.RUNINFO, level = 2)
-	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
+	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
+	runInfo = classes.runObject(runDate, runID)
+	runInfo.loadSelf(config)
+	if runInfo.comment=="":
+		runInfo.checkForComments(config.ULTRACAMRAW)
+
 	
 	debug.write("Run Info:\n----------------------", level = 2)
 	debug.write(runInfo, level = 2)

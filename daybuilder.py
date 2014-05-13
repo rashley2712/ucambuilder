@@ -57,6 +57,8 @@ if __name__ == "__main__":
 
 	runData = []
 
+	""" Now gather all of the run info meta-data we can for each one of these runs...
+	"""
 	for runID in runList:
 		debug.write("Building meta-data for run:" + runID)
 		newRun = classes.runObject(arg.date, runID)

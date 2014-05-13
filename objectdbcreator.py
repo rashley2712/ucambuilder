@@ -184,9 +184,6 @@ if __name__ == "__main__":
 	runInfo = classes.runObject(runDate, runID)
 	runInfo.loadSelf(config)
 	
-	#debug.write("Getting run info from the file:" + config.RUNINFO, level = 1)
-	#runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
-	
 	debug.write("Run Info:\n----------------------", level = 2)
 	debug.write(runInfo, level = 2)
 	debug.write("----------------------", level = 2)
