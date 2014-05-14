@@ -357,6 +357,15 @@ if __name__ == "__main__":
 		imgLength = imgSize[0] * imgSize[1]
 		testData = numpy.reshape(imgData, imgLength, order="F")
 		img = Image.new("L", imgSize)
+		
+		
+		palette = []
+		for i in range(256):
+			if channel == 'r': palette.extend((255, 255-i, 255-i)); # red palette
+			if channel == 'g': palette.extend((255-i, 255, 255-i)); # green palette
+			if channel == 'b': palette.extend((255-i, 255-i, 255)); # blue palette
+		img.putpalette(palette)
+		
 		img.putdata(testData)
 		debug.write("Writing PNG file: " + imageFilename, level = 2) 
 		img.save(imageFilename, "PNG")
