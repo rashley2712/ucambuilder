@@ -349,7 +349,7 @@ if __name__ == "__main__":
 			yll = frameInfo.getWindow(j).yll 
 			xsize = frameInfo.getWindow(j).xsize 
 			ysize = frameInfo.getWindow(j).ysize 
-			fullImage[xll:xll+xsize, yll:yll+ysize] = fullImage[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+			fullImage[xll:xll+xsize, yll:yll+ysize] = fullImage[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 50, 98)
 			
 		fullImage = numpy.fliplr(fullImage)
 		imgData = fullImage
