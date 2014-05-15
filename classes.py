@@ -144,7 +144,7 @@ class runObject:
 		
 	def __str__(self):
 		outStr = "RunID: " + self.runID + "\n"
-		outStr = "Date: " + self.runDate + "\n"
+		outStr+= "Date: " + self.runDate + "\n"
 		outStr+= "Target: " + self.target + " RA:" + str(self.ra) + " DEC: " + str(self.dec) + "\n"
 		outStr+= "Frames: " + str(self.numFrames) + "\n"
 		outStr+= "Mode: " + self.mode + "\n"
