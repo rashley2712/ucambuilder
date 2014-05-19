@@ -13,6 +13,7 @@ import ultracam_shift
 import time, datetime
 import json
 import Image,ImageDraw
+import ucamObjectClass
 
 def getNextFrame():
 	""" Reads the next frame from the CCD using trm routines. Returns all three channels in a dict object (an array of windows)
@@ -222,12 +223,13 @@ if __name__ == "__main__":
 	frameInfo = classes.FrameObject()
 	channelTempCatalogs = {'r':[], 'g':[], 'b':[]}
 	stackedImages = {'r':[], 'g':[], 'b':[]}
-	""" Created a storage array for keeping the stacked images...
+	""" Create a storage array for keeping the stacked images...
 	"""
 	for c in channelNames:
 		stackedImageStore = classes.stackedImage()
 		stackedImages[c] = stackedImageStore
-		
+	
+	frameDataArray = []	
 	startTime = datetime.datetime.now()
 	timeLeftString = "??:??"
 	""" Run through all the frames in the .dat file.
@@ -246,6 +248,7 @@ if __name__ == "__main__":
 			(hours, mins, secs) = ultracamutils.timedeltaHoursMinsSeconds(timeLeft)
 			timeLeftString = str(hours).zfill(2) + ":" + str(mins).zfill(2) + ":" + str(secs).zfill(2)
 		
+		frameData = ucamObjectClass.frameObject(wholeFrame['MJD'], trueFrameNumber, frameIndex)
 		
 		trackingObjectString = ""
 		for c in channelNames:
@@ -296,6 +299,8 @@ if __name__ == "__main__":
 
 			if len(newObjects)>0:
 				updateCatalog(wholeFrame['MJD'], frameIndex, newObjects)
+
+			frameData.setObjectCount(channel, len(newObjects))
 		
 			allObjects[channel] = masterObjectList
 			channelTempCatalogs[channel] = prevCatalog
@@ -329,8 +334,12 @@ if __name__ == "__main__":
 				if arg.png: 
 					matplotlib.pyplot.savefig("r_" + str(frameIndex).zfill(5) +  ".png")
 			
+			
 			if arg.sleep!=0:
 				time.sleep(arg.sleep)
+		
+		frameDataArray.append(frameData)
+			
 
 		if arg.preview:
 			matplotlib.pyplot.draw()
@@ -400,3 +409,20 @@ if __name__ == "__main__":
 		runInfo.maxExtents = [xmin, xmax, ymin, ymax]
 		
 		runInfo.writeSelf(config)
+		
+		""" Now write out the frameData
+		"""
+		outputFilename = ultracamutils.addPaths(config.SITE_PATH, runIdent)
+		outputFilename+= "_frameInfo.json"
+		
+		frameObjects = []
+		
+		for f in frameDataArray:
+			frameObjects.append(f.toJSON())
+		
+		outputfile = open(outputFilename, "w")
+		
+		json.dump(frameObjects, outputfile)
+
+		outputfile.close()
+		

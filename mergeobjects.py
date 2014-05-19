@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import ultracamutils
+import ultracamutils, ucamObjectClass
 import sys, subprocess, re, json
 import classes, numpy as np
 import astropy.io.fits
@@ -35,6 +35,24 @@ if (__name__ == "__main__"):
 	channelDescriptions = {'r': "Red", 'g': "Green", 'b': "Blue"}
 	allObjects = {'r': [], 'g':[], 'b':[]}
 	pixelMatch = False      # This is set to True if we don't have a WCS solution and need to use pixel locations for matching
+	
+	""" Load the information about the frames
+	"""
+	jsonFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_frameInfo.json"
+	debug.write("Loading frame info from %s"%(jsonFilename), level = 2)
+	jsonFile = open(jsonFilename, 'r')
+	jsonObjects = json.loads(jsonFile.read())
+	
+	frameData = []
+	
+	for j in jsonObjects:
+		object = json.loads(j)
+		frame = ucamObjectClass.frameObject()
+		frame.setFromObject(object)
+		frameData.append(frame)
+		
+	for f in frameData:
+		print f
 	
 	""" Load the objects from the .json files.... channel by channel (r, g, b)
 	"""
