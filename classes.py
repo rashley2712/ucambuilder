@@ -104,7 +104,7 @@ class runObject:
 		for line in dataFile:
 			runIdentifier = line[:6]
 			if (runIdentifier==self.runID):
-				self.comment = line[7:]
+				self.comment = line[7j:]
 			
 		
 	def updateRunInfo(self, object):
