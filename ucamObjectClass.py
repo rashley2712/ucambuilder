@@ -1,15 +1,41 @@
 import math, json
 import ultracamutils
 
-class ucamObject:
+class colourObject:
 	""" This class is the storage holder for a merged object
 	"""
 	
+	colours = ['r', 'g', 'b']
+	
 	def __init__(self, id):
 		self.id = id
-		photometry = { 'magnitude': 0, 'MJDIndex': 0 }
-		self.photometryMeasurements = 0
 		self.isComparison = False;
+		self.meanPosition = {'r': (0, 0), 'g': (0, 0), 'b': (0, 0)}
+		self.photometry = {'r': [], 'g': [], 'b':[] }
+		self.colourID = { 'r': -1, 'g': -1, 'b': -1 }
+		
+	def setMeanPosition(self, colour, meanPosition):
+		self.meanPosition[colour] = meanPosition
+		
+	def addExposure(self, colour, exposure):
+		self.photometry[colour].append(exposure)
+
+	def __str__(self):
+		retStr = "ID: %d\n"%self.id
+		for c in colourObject.colours:
+			retStr+= '%s(%d,%d)[%d][%d] '%(c, int(self.meanPosition[c][0]), int(self.meanPosition[c][1]), len(self.photometry[c]), self.colourID[c])
+			
+		return retStr
+		
+	def toJSON(self):
+		testObject = {}
+		testObject['id'] = self.id
+		testObject['isComparison'] = self.isComparison
+		testObject['colourID'] = self.colourID
+		testObject['meanPosition'] = self.meanPosition
+		testObject['photometry'] = self.photometry
+		jsonString = json.dumps(testObject)
+		return jsonString
 		
 
 class timeLine:

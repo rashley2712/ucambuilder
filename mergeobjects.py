@@ -7,6 +7,29 @@ import astropy.wcs
 import argparse, os, copy
 import wcsclasses
 	
+	
+def addPhotometry(colourObject, colour, exposureArray):
+	exposureArray = o.exposures
+	for e in exposureArray:
+		# Match the exposure with a frame based on the MJD
+		MJD = e.MJD
+		frameIndex = -1
+		for frame in frameData:
+			if frame.MJD == MJD:
+				frameIndex = frame.frameIndex
+				frameObject = frame
+				break
+			
+		newExposure = {'frameIndex': frameIndex}
+		newExposure['magnitude'] = e.counts
+		newExposure['fwhm'] = e.FWHM
+		newExposure['position'] = e.centroid
+			
+		colourObject.addExposure(colour, newExposure)
+		
+
+	
+
 if (__name__ == "__main__"):
 	parser = argparse.ArgumentParser(description='Reads the files produced by earlier steps in the pipeline.')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
@@ -22,7 +45,7 @@ if (__name__ == "__main__"):
 	debug.write(config)
 	
 	runName = arg.runname
-
+	
 	debug = classes.debugObject(arg.debuglevel)
 	debug.write("Getting run info from the file:" + config.RUNINFO, level = 2)
 	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
@@ -50,9 +73,8 @@ if (__name__ == "__main__"):
 		frame = ucamObjectClass.frameObject()
 		frame.setFromObject(object)
 		frameData.append(frame)
-		
-	for f in frameData:
-		print f
+
+	debug.write("Loaded info for %d frames."%(len(frameData)))
 	
 	""" Load the objects from the .json files.... channel by channel (r, g, b)
 	"""
@@ -109,219 +131,118 @@ if (__name__ == "__main__"):
 		allObjects[c] = sortedObjects
 			
 	
-	redObjects = allObjects['r']
-	greenObjects = allObjects['g']
-	blueObjects = allObjects['b']
-	
-	if not pixelMatch:
-		distanceThresholdSeconds = 10.
-		distanceThresholdDegrees = distanceThresholdSeconds / 3600.
-	
-		allObjectsCopy = copy.copy(allObjects)
+			
+	colour = 'r'
+	objects = allObjects[colour]
+	masterObjectList = []
+	for o in objects:
+		newIDNumber = ultracamutils.getUniqueID(masterObjectList)
+		colourObject = ucamObjectClass.colourObject(newIDNumber)
+		debug.write("Created a new colourObject with id: %d"%(newIDNumber))
 		
-		""" Start with the colour that has the fewest number of objects
+		colourObject.setMeanPosition(colour, o.meanPosition)
+		colourObject.colourID[colour] = o.id
+		
+		""" Now move the photometry into the new object
 		"""
-		startCatalogIndex = 'r'
-		startCatalogLength = len(allObjectsCopy[startCatalogIndex])
-		for c in channels:
-			length = len(allObjectsCopy[c])
-			if length<startCatalogLength:
-				startCatalogIndex = c
-				startCatalogLength = length
-		debug.write("Channel with the smallest number of objects is %s with %d objects."%(channelDescriptions[startCatalogIndex], startCatalogLength))
-				
-		colourObjects = []
+		addPhotometry(colourObject, colour, o.exposures)
+		masterObjectList.append(colourObject)
+
+	distanceThreshold = float(config.MINPIXELDISTANCE)
+	print "Threshold", distanceThreshold
+
+	colour = 'g'
+	objects = allObjects[colour]
+	for o in objects:
+		""" First see if we have a position match in our existing objects
+		"""
+		position = o.meanPosition
+		closestDistance = 1000
+		closestObject = None
+		for m in masterObjectList:
+			r_distance = ultracamutils.calculateDistance(position, m.meanPosition['r'])
+			if r_distance < closestDistance: 
+				closestDistance = r_distance
+				closestObject = m
+		if closestDistance > distanceThreshold:
+			closestObject = None   # Reject the match if it is too far away
 		
-		threeColours = ['r', 'g', 'b']
-		currentColour = startCatalogIndex
-		debug.write("Running through the %s objects."%channelDescriptions[currentColour])
-		threeColours.pop(threeColours.index(currentColour))
-		print "Remaining colours", threeColours
-		firstColourObjects = allObjectsCopy[startCatalogIndex]
-		firstColourList = copy.copy(firstColourObjects)
-		for o in firstColourObjects:
-			id = ultracamutils.getUniqueID(colourObjects)
-			colourObject = classes.combined3ColourObject(id)
-			colourObject.setColourID(currentColour, o.id)
-			firstColourList.remove(o)
-			allObjectsCopy[currentColour] = firstColourList
-			originalCoords = (o.ra, o.dec)
-			for othercolour in threeColours:
-				objects = allObjectsCopy[othercolour]
-				debug.write("Looking for %s objects to match the current %s object"%(channelDescriptions[othercolour], channelDescriptions[currentColour]))
-				closestDistance = 1
-				closestObject = None
-				for p in objects:
-					objectCoords = (p.ra, p.dec)
-					distance = ultracamutils.calculateDistance(originalCoords, objectCoords)
-					if distance < closestDistance:
-						closestDistance = distance
-						closestObject = p
-				if closestDistance < distanceThresholdDegrees:
-					colourObject.setColourID(othercolour, closestObject.id)
-					objects.remove(closestObject)
-					allObjectsCopy[othercolour] = objects
-				else: 
-					debug.write("No match... to far from threshold")
-				
-			debug.write(colourObject)
-			colourObjects.append(colourObject)
-			
-		debug.write("Objects remaining:")	
-		for c in channels:
-			debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
-	
-		startCatalogIndex = threeColours[0]
-		startCatalogLength = len(allObjectsCopy[startCatalogIndex])
-		for c in threeColours:
-			length = len(allObjectsCopy[c])
-			if length<startCatalogLength:
-				startCatalogIndex = c
-				startCatalogLength = length
-		currentColour = startCatalogIndex
-				
-		debug.write("Channel with the smallest number of objects is %s with %d objects."%(channelDescriptions[startCatalogIndex], startCatalogLength))
-		threeColours.pop(threeColours.index(currentColour))
-		print "Remaining colours:", threeColours
+		if closestObject == None:
+			newIDNumber = ultracamutils.getUniqueID(masterObjectList)
+			colourObject = ucamObjectClass.colourObject(newIDNumber)
+			debug.write("Could find no match to this green object!")
+			debug.write("Created a new colourObject with id: %d"%(newIDNumber))
+			colourObject = ucamObjectClass.colourObject(newIDNumber)
+			colourObject.setMeanPosition(colour, o.meanPosition)
+			colourObject.colourID[colour] = o.id
+			addPhotometry(colourObject, colour, o.exposures)
+			masterObjectList.append(colourObject)
+		else: 
+			closestObject.setMeanPosition(colour, o.meanPosition)
+			closestObject.colourID[colour] = o.id
 		
-		secondColourObjects = allObjectsCopy[currentColour]
-		secondColourList = copy.copy(secondColourObjects)
-		for o in secondColourObjects:
-			id = ultracamutils.getUniqueID(colourObjects)
-			colourObject = classes.combined3ColourObject(id)
-			colourObject.setColourID(currentColour, o.id)
-			secondColourList.remove(o)
-			allObjectsCopy[currentColour] = secondColourList
-			originalCoords = (o.ra, o.dec)
-			for othercolour in threeColours:
-				objects = allObjectsCopy[othercolour]
-				debug.write("Looking for %s objects to match the current %s object"%(channelDescriptions[othercolour], channelDescriptions[currentColour]))
-				closestDistance = 1
-				closestObject = None
-				for p in objects:
-					objectCoords = (p.ra, p.dec)
-					distance = ultracamutils.calculateDistance(originalCoords, objectCoords)
-					if distance < closestDistance:
-						closestDistance = distance
-						closestObject = p
-				if closestDistance < distanceThresholdDegrees:
-					colourObject.setColourID(othercolour, closestObject.id)
-					objects.remove(closestObject)
-					allObjectsCopy[othercolour] = objects
-				else: 
-					debug.write("No match... to far from threshold")
-				
-			debug.write(colourObject)
-			colourObjects.append(colourObject)
+			addPhotometry(closestObject, colour, o.exposures)
 			
-		debug.write("Objects remaining:")	
-		for c in channels:
-			debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
-	
-		currentColour = threeColours[0]
-		finalObjects = allObjectsCopy[currentColour]
-		finalColourList = copy.copy(finalObjects)
-		for o in finalObjects:
-			id = ultracamutils.getUniqueID(colourObjects)
-			colourObject = classes.combined3ColourObject(id)
-			colourObject.setColourID(currentColour, o.id)
-			debug.write(colourObject)
-			colourObjects.append(colourObject)
-			finalColourList.remove(o)
-			allObjectsCopy[currentColour] = finalColourList
+	colour = 'b'
+	objects = allObjects[colour]
+	for o in objects:
+		""" First see if we have a position match in our existing objects
+		"""
+		position = o.meanPosition
+		closestDistance = 1000
+		closestObject = None
+		for m in masterObjectList:
+			if m.colourID['r']!= -1 :
+				r_distance = ultracamutils.calculateDistance(position, m.meanPosition['r'])
+				if r_distance < closestDistance: 
+					closestDistance = r_distance
+					closestObject = m
+			if m.colourID['g']!= -1 :
+				g_distance = ultracamutils.calculateDistance(position, m.meanPosition['g'])
+				if g_distance < closestDistance:
+					closestDistance = g_distance
+					closestObject = m
+					
+		if closestDistance > distanceThreshold:
+			closestObject = None   # Reject the match if it is too far away
+		
+		
+		if closestObject == None:
+			newIDNumber = ultracamutils.getUniqueID(masterObjectList)
+			colourObject = ucamObjectClass.colourObject(newIDNumber)
+			debug.write("Could find no match to this blue object!")
+			debug.write("Created a new colourObject with id: %d"%(newIDNumber))
+			colourObject = ucamObjectClass.colourObject(newIDNumber)
+			colourObject.setMeanPosition(colour, o.meanPosition)
+			addPhotometry(colourObject, colour, o.exposures)
+			colourObject.colourID[colour] = o.id
+			masterObjectList.append(colourObject)
+		else: 
+			closestObject.setMeanPosition(colour, o.meanPosition)
+			closestObject.colourID[colour] = o.id
+			addPhotometry(closestObject, colour, o.exposures)
 			
-		debug.write("Objects remaining:")	
-		for c in channels:
-			debug.write("%s: %d"%(channelDescriptions[c], len(allObjectsCopy[c])))
-	
-	else:        # This is if we are using pixel matching (rather than WCS coordinates)
 
-		debug.write("We are doing pixel matching")
-
-		pixelDistanceThreshold = 10
-
-		colourObjects = []
-
-		redObjects = allObjects['r']
-		greenObjects = allObjects['g']
-		blueObjects = allObjects['b']
-
-		for r in redObjects:
-			newID = ultracamutils.getUniqueID(colourObjects)
-			colourObject = classes.combined3ColourObject(newID)
-			colourObject.setColourID('r', r.id)
-			debug.write("Red object: " + str(r))
-			minDistance = 1000
-			closestGreen = greenObjects[0]
-			for g in greenObjects:
-				distance = ultracamutils.calculateDistance(r.meanPosition, g.meanPosition)
-				if distance<minDistance:
-					minDistance = distance
-					closestGreen = g
-			debug.write("Closest green: " + str(closestGreen))
-			if minDistance < pixelDistanceThreshold:
-				colourObject.setColourID('g', closestGreen.id)
-			else: debug.write("... but too far away")
-
-			minDistance = 1000
-			closestBlue = blueObjects[0]
-			for b in blueObjects:
-				distance = ultracamutils.calculateDistance(r.meanPosition, b.meanPosition)
-				if distance<minDistance:
-					minDistance = distance
-					closestBlue = b
-			debug.write("Closest blue: " + str(closestBlue))
-			if minDistance < pixelDistanceThreshold:
-				colourObject.setColourID('b', closestBlue.id)
-			else: debug.write("... but too far away")
-
-			colourObjects.append(colourObject)
-
-			debug.write(" ")
-
-	""" Look for duplicates
+	for colourObject in masterObjectList:
+		print colourObject
+		
+	""" Now write out the objectInfo to a JSON file...
 	"""
-	redList = []
-	greenList = []
-	blueList = []
-	duplicates = 0
-	for c in colourObjects:
-		print c
-	
-		redID = c.getColourID('r')
-		try: 
-			if redList.index(redID): duplicates+=1
-		except ValueError:
-			if redID!= -1: redList.append(redID)
+	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
+	outputFilename+= "_objects.json"
 
-		greenID = c.getColourID('g')
-		try: 
-			if greenList.index(greenID): duplicates+=1
-		except ValueError:
-			if greenID!= -1: greenList.append(greenID)
-			
-		blueID = c.getColourID('b')
-		try: 
-			if blueList.index(blueID): duplicates+=1
-		except ValueError:
-			if blueID!= -1: blueList.append(blueID)
-	
-	print redList, greenList, blueList
+	print masterObjectList[0].toJSON()
 
-	print "Duplicates: ", duplicates
+	debug.write("Writing all objects to: %s"%(outputFilename))
+		
+	JSONObjects = []
 	
-	outputFilename = ultracamutils.addPaths(config.SITE_PATH,runName) 
-	outputFilename+= "_rgb" + ".json"
-
-	jsonArray = []
-	for c in colourObjects:
-		print c.toJSON()
-		jsonArray.append(c.toJSON())
+	for m in masterObjectList:
+		JSONObjects.append(m.toJSON())
 	
+	outputfile = open(outputFilename, "w")
 	
-	outputfile = open( outputFilename, "w" )
-	debug.write("Writing colour objects to %s"%outputFilename)
-	json.dump(jsonArray, outputfile)
+	json.dump(JSONObjects, outputfile)
 	outputfile.close()
 
-
+	
