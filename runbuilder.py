@@ -44,7 +44,7 @@ if __name__ == "__main__":
 	
 	subprocess.call(["wcssolver.py", arg.runname, dString])
 
-	subprocess.call(["mergecolours.py", arg.runname, dString])
+	subprocess.call(["mergeobjects.py", arg.runname, dString])
 
 	subprocess.call(["create_html.py", arg.runname, dString])
 	

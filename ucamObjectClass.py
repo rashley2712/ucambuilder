@@ -33,7 +33,13 @@ class colourObject:
 		testObject['isComparison'] = self.isComparison
 		testObject['colourID'] = self.colourID
 		testObject['meanPosition'] = self.meanPosition
-		testObject['photometry'] = self.photometry
+		shortPhotometry = {'r': [], 'g': [], 'b':[]}
+		for c in colourObject.colours:
+			measurements = self.photometry[c]
+			for m in measurements:
+				reading = [ m['frameIndex'], m['magnitude'], m['fwhm'], m['position'][0], m['position'][1] ]
+				shortPhotometry[c].append(reading)
+		testObject['photometry'] = shortPhotometry
 		jsonString = json.dumps(testObject)
 		return jsonString
 		

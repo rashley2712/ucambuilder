@@ -135,7 +135,7 @@ if (__name__ == "__main__"):
 		
 if (int(config.WRITE_JSON)==1):
 	for c in channels:
-		outputFilename = ultracamutils.addPaths(config.SITE_PATH,runName) 
+		outputFilename = ultracamutils.addPaths(config.WORKINGDIR,runName) 
 		outputFilename+= "_" + c + ".json"
 		debug.write("Writing the refined %s object catalogs to .json file: %s"%(channelDescriptions[c], outputFilename), level =2 )
 		objects = allObjects[c]

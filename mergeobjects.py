@@ -79,7 +79,7 @@ if (__name__ == "__main__"):
 	""" Load the objects from the .json files.... channel by channel (r, g, b)
 	"""
 	for c in channels:
-		jsonFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_" + c + ".json"	
+		jsonFilename = ultracamutils.addPaths(config.WORKINGDIR, runName) + "_" + c + ".json"	
 		debug.write("Loading the json file for the %s objects from path: %s"%(channelDescriptions[c], jsonFilename), level = 2)
 		objects = ultracamutils.buildObjectsFromJSON(jsonFilename)
 		allObjects[c] = objects
@@ -172,7 +172,6 @@ if (__name__ == "__main__"):
 			colourObject = ucamObjectClass.colourObject(newIDNumber)
 			debug.write("Could find no match to this green object!")
 			debug.write("Created a new colourObject with id: %d"%(newIDNumber))
-			colourObject = ucamObjectClass.colourObject(newIDNumber)
 			colourObject.setMeanPosition(colour, o.meanPosition)
 			colourObject.colourID[colour] = o.id
 			addPhotometry(colourObject, colour, o.exposures)
@@ -212,7 +211,6 @@ if (__name__ == "__main__"):
 			colourObject = ucamObjectClass.colourObject(newIDNumber)
 			debug.write("Could find no match to this blue object!")
 			debug.write("Created a new colourObject with id: %d"%(newIDNumber))
-			colourObject = ucamObjectClass.colourObject(newIDNumber)
 			colourObject.setMeanPosition(colour, o.meanPosition)
 			addPhotometry(colourObject, colour, o.exposures)
 			colourObject.colourID[colour] = o.id
@@ -222,18 +220,13 @@ if (__name__ == "__main__"):
 			closestObject.colourID[colour] = o.id
 			addPhotometry(closestObject, colour, o.exposures)
 			
-
-	for colourObject in masterObjectList:
-		print colourObject
 		
 	""" Now write out the objectInfo to a JSON file...
 	"""
 	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
 	outputFilename+= "_objects.json"
 
-	print masterObjectList[0].toJSON()
-
-	debug.write("Writing all objects to: %s"%(outputFilename))
+	debug.write("Writing %d objects to: %s"%(len(masterObjectList), outputFilename))
 		
 	JSONObjects = []
 	
