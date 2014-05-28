@@ -68,11 +68,13 @@ class runObject:
 			wholeFileString = JSONfile.read()
 			parsedObject = json.loads(wholeFileString)
 			for key in parsedObject.keys():
+				print "Setting property:", key, parsedObject[key]
 				setattr(self,key,parsedObject[key])
 		else: 
+			print "Not found... falling back to ultra.json"
 			self.mergeULTRAJSON(configData.RUNINFO)
 			
-	
+			
 	def mergeULTRAJSON(self, ultrajsonFilename):
 		""" Looks in Tom's ultra.json file and gets the data there. Merges it with this object
 		"""
@@ -104,7 +106,7 @@ class runObject:
 		for line in dataFile:
 			runIdentifier = line[:6]
 			if (runIdentifier==self.runID):
-				self.comment = line[7:]
+				self.comment = line[9:]
 			
 		
 	def updateRunInfo(self, object):
@@ -144,7 +146,7 @@ class runObject:
 		
 	def __str__(self):
 		outStr = "RunID: " + self.runID + "\n"
-		outStr+= "Date: " + self.runDate + "\n"
+		outStr = "Date: " + self.runDate + "\n"
 		outStr+= "Target: " + self.target + " RA:" + str(self.ra) + " DEC: " + str(self.dec) + "\n"
 		outStr+= "Frames: " + str(self.numFrames) + "\n"
 		outStr+= "Mode: " + self.mode + "\n"
@@ -581,3 +583,4 @@ class ObservedObject:
 		for i in self.exposures:
 			CountsArray.append(i.counts)
 		return CountsArray 
+
