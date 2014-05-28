@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import ultracamutils, ucamObjectClass
 import sys, subprocess, re, json
-import classes, numpy as np
+import classes, numpy 
 import astropy.io.fits
 import astropy.wcs
 import argparse, os, copy
@@ -26,6 +26,17 @@ def addPhotometry(colourObject, colour, exposureArray):
 		newExposure['position'] = e.centroid
 			
 		colourObject.addExposure(colour, newExposure)
+		
+def filter3ColourObjects(objects):
+	""" Returns a smaller list containing only those objects that have photometry in all three channels
+	"""
+	filteredList = []
+	for o in objects:
+		if (o.colourID['r']!=-1) & (o.colourID['g']!=-1) & (o.colourID['b']!=-1): 
+			filteredList.append(o)
+	
+	return filteredList
+	
 		
 
 	
@@ -58,6 +69,7 @@ if (__name__ == "__main__"):
 	channelDescriptions = {'r': "Red", 'g': "Green", 'b': "Blue"}
 	allObjects = {'r': [], 'g':[], 'b':[]}
 	pixelMatch = False      # This is set to True if we don't have a WCS solution and need to use pixel locations for matching
+	colours = ['r', 'g', 'b']
 	
 	""" Load the information about the frames
 	"""
@@ -220,6 +232,55 @@ if (__name__ == "__main__"):
 			closestObject.colourID[colour] = o.id
 			addPhotometry(closestObject, colour, o.exposures)
 			
+	""" Now look for comparison objects
+	    Choose the brightest object with info in all colours
+	"""
+	filteredObjects = filter3ColourObjects(masterObjectList)
+	print "%d objects in total. %d have photometry in all three colours."%(len(masterObjectList), len(filteredObjects))
+	
+	for o in filteredObjects:
+		o.calculateSigma()
+		
+	for c in colours:
+		print c
+		deviations = []
+		for o in filteredObjects:
+			deviations.append(o.deviations[c])
+		print deviations
+		stddev = numpy.std(deviations)
+		mean = numpy.mean(deviations)
+		print stddev
+		""" Which ones lie withing 1 sigma of this stddev?
+		"""
+		for o in filteredObjects:
+			if abs(o.deviations[c] - mean) < stddev:
+				print "Comparison: " + str(o)
+				o.setComparisonFlag(c)
+			else:
+				print "Variable: " + str(o)
+	
+	""" Check if the object passes the 1 sigma test in all three channels
+	"""			
+	for o in filteredObjects:
+		o.testComparison()
+		
+	for o in filteredObjects:
+		if o.isComparison:
+			print "Comparison: " + str(o)
+		else:
+			print "Variable: " + str(o)
+			
+	""" For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
+	"""
+	comparisonMagnitudes = []
+	for f in frameData:
+		frameIndex = f.frameIndex
+		for o in filteredObjects:
+			for c in colours:
+				magnitude = o.getPhotometry(c, frameIndex)
+				
+		
+	
 		
 	""" Now write out the objectInfo to a JSON file...
 	"""

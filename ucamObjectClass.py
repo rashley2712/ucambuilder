@@ -1,4 +1,4 @@
-import math, json
+import math, json, numpy
 import ultracamutils
 
 class colourObject:
@@ -13,12 +13,35 @@ class colourObject:
 		self.meanPosition = {'r': (0, 0), 'g': (0, 0), 'b': (0, 0)}
 		self.photometry = {'r': [], 'g': [], 'b':[] }
 		self.colourID = { 'r': -1, 'g': -1, 'b': -1 }
+		self.deviations = { 'r': -1, 'g': -1, 'b': -1 }
+		self.comparisonFlags = { 'r': False, 'g': False, 'b': False }
 		
 	def setMeanPosition(self, colour, meanPosition):
 		self.meanPosition[colour] = meanPosition
 		
 	def addExposure(self, colour, exposure):
 		self.photometry[colour].append(exposure)
+		
+	def calculateSigma(self):
+		for c in colourObject.colours:
+			data = self.photometry[c]
+			measurement = []
+			for e in data:
+				measurement.append(e['magnitude'])
+			standardDeviation = numpy.std(measurement)
+			mean = numpy.mean(measurement)
+			fractionalstd = standardDeviation/mean
+			print "%s mean: %f, stdev: %f, std/mean: %f"%(c, mean, standardDeviation, fractionalstd)
+			self.deviations[c] = fractionalstd
+			
+	def getPhotometry(self, c, frameIndex):
+		data = self.photometry[c]
+		for e in data:
+			if e['frameIndex'] == frameIndex:
+				return e['magnitude']
+			
+		return -1
+		
 
 	def __str__(self):
 		retStr = "ID: %d\n"%self.id
@@ -26,6 +49,18 @@ class colourObject:
 			retStr+= '%s(%d,%d)[%d][%d] '%(c, int(self.meanPosition[c][0]), int(self.meanPosition[c][1]), len(self.photometry[c]), self.colourID[c])
 			
 		return retStr
+		
+	def setComparisonFlag(self, colour):
+		self.comparisonFlags[colour] = True
+		
+	def testComparison(self):
+		if (self.comparisonFlags['r'] & self.comparisonFlags['g'] & self.comparisonFlags['b']): 
+			self.isComparison = True
+			return True
+		else: 
+			return False
+			
+			 
 		
 	def toJSON(self):
 		testObject = {}
