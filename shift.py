@@ -7,6 +7,7 @@ import numpy as np
 from   scipy.ndimage.filters import gaussian_filter
 from   numpy.linalg import solve
 import math
+import matplotlib.pyplot
 
 def vimage(cat1, cat2, dmax, psize, fwhm):
     """Given two position catalogues of stars, each a numpy array of the form
@@ -47,6 +48,11 @@ def vimage(cat1, cat2, dmax, psize, fwhm):
     # smooth image
     img = gaussian_filter(img,fwhm/psize/2.3548,mode='constant')
     #print img
+    imgplot = matplotlib.pyplot.imshow(img, cmap='gray', interpolation='nearest')
+    matplotlib.pyplot.draw()
+    matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
+
+
     # identify maximum pixel
     ind = np.arange(NSIDE)
     ix, iy = np.meshgrid(ind, ind)
@@ -64,6 +70,8 @@ def vimage(cat1, cat2, dmax, psize, fwhm):
         # as "refined" position
         xr = xp
         yr = yp
+        
+
 
     else:
         # Make a quadratic approx to refine the peak position.
@@ -118,7 +126,8 @@ def match(cat1, cat2, xs, ys, mmax):
     return (nmatch, ind2)
 
 if __name__ == '__main__':
-
+    matplotlib.pyplot.ion()
+ 
     # generate artificial catalogue
 
     psize  = 0.5
@@ -130,13 +139,12 @@ if __name__ == '__main__':
     x0 = np.random.uniform(high=1000., size=NSTARS)
     y0 = np.random.uniform(high=1000., size=NSTARS)
     
-
     # catalogue 1: all of the stars
     x1 = x0
     y1 = y0
     cat1 = np.array(zip(x1, y1))
-    print cat1
-    print cat1.shape
+    #print cat1
+    #print cat1.shape
 
     d1 = []
     d2 = []
@@ -153,10 +161,10 @@ if __name__ == '__main__':
         xs, ys = np.random.uniform(-5.,5.), np.random.uniform(-5.,5.)
         x2 += xs + np.random.normal(scale=0.7, size=len(x2))
         y2 += ys + np.random.normal(scale=0.7, size=len(y2))
-        print x2
+        #print x2
         cat2 = np.array(zip(x2, y2))
 
-        xp,yp,xr,yr = vimage(cat1, cat2, 10, psize, fwhm)
+        xp,yp,xr,yr = vimage(cat1, cat2, dmax, psize, fwhm)
         print 'x=',xs, xp, xr, 'y=', ys, yp, yr
 
         d1.append(np.sqrt((xp-xs)**2+(yp-ys)**2))
@@ -164,8 +172,7 @@ if __name__ == '__main__':
 
         nmatch, inds = match(cat1, cat2, xp, yp, mmax)
         #print nmatch, inds
-
-	d1 = np.array(d1)
-	d2 = np.array(d2)
-
-	print d1.mean(), d2.mean()
+    dnp1 = np.array(d1)
+    dnp2 = np.array(d2)
+       
+    print dnp1.mean(), dnp2.mean()

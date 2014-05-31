@@ -259,8 +259,8 @@ if (int(config.WRITE_FITS)==1):
 	prihdr['CTYPE2'] = "DEC--TAN"
 	prihdr['CRPIX1'] = 512
 	prihdr['CRPIX2'] = 512
-	prihdr['CRVAL1'] = 296.0083
-	prihdr['CRVAL2'] = 40.2963
+	prihdr['CRVAL1'] = 238.2333
+	prihdr['CRVAL2'] = 12.9122
 	prihdr['CDELT1'] = -8.3E-05
 	prihdr['CDELT2'] = 8.3E-05
 	

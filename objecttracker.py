@@ -233,6 +233,7 @@ if (int(config.WRITE_JSON)==1):
 
 	for m in masterObjectList:
 		allObjects.append(m.toJSON())
+		print m
 	
 	outputFilename = utils.addPaths(config.SITE_PATH,runName) 
 	outputFilename+= channel + ".json"
