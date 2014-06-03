@@ -197,6 +197,7 @@ class configObject:
         self.FONT = "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf"
         self.RUNTEMPLATE = "/home/rashley/astro/ucamsite/templates/runxxx.jinja"
         self.WORKINGDIR = "/storage/astro2/phrnaw/ucamsite"
+        self.COMPARISON_THRESHOLD = 95.
 
 
     def __setitem__(self, item, value):

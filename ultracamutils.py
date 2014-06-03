@@ -61,6 +61,14 @@ def getUniqueID(objects):
 		if (o.id >= newID): newID = o.id + 1	
 	return newID
 
+def getObjectByID(objects, id):
+	""" Returns an object that matches a given ID, assuming the list of objects have an ID property
+	""" 
+	for o in objects:
+		if (o.id == id): return o	
+	return None
+
+
 def percentiles(data, lo, hi):
     """ Returns a normalised array where lo percent of the pixels are 0 and hi percent of the pixels are 255
     """

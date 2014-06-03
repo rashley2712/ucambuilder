@@ -41,7 +41,15 @@ class colourObject:
 				return e['magnitude']
 			
 		return -1
+
+	def getAllPhotometryByColour(self, c):
+		photometry = []
+		data = self.photometry[c]
+		for e in data:
+			photometry.append((e['frameIndex'], e['magnitude']))
 		
+		return photometry
+
 
 	def __str__(self):
 		retStr = "ID: %d\n"%self.id
