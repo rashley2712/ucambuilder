@@ -54,7 +54,9 @@ class colourObject:
 	def __str__(self):
 		retStr = "ID: %d\n"%self.id
 		for c in colourObject.colours:
-			retStr+= '%s(%d,%d)[%d][%d] '%(c, int(self.meanPosition[c][0]), int(self.meanPosition[c][1]), len(self.photometry[c]), self.colourID[c])
+			retStr+= '%s(%d,%d)[%d][%d]'%(c, int(self.meanPosition[c][0]), int(self.meanPosition[c][1]), len(self.photometry[c]), self.colourID[c])
+			if self.comparisonFlags[c]: retStr+= 'c';
+			retStr+= ' '
 			
 		return retStr
 		

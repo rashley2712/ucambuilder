@@ -60,6 +60,14 @@ def computeDifferentialPhotometry(photometry1, photometry2):
 				differentialPhotometry.append(diffPhot)
 				
 	return differentialPhotometry
+	
+def findMaxFramesByColour(colour, objectList):
+	numFrames = 0
+	for o in objectList:
+		photometry = o.getAllPhotometryByColour(colour)
+		if len(photometry)>numFrames: numFrames = len(photometry)
+	
+	return numFrames
 
 
 if (__name__ == "__main__"):
@@ -261,90 +269,95 @@ if (__name__ == "__main__"):
 	    Do this independently for each colour
 		1. Find objects that have photometry for most frames
 	"""
-	colour = 'r'
-	numFrames = len(frameData)
-	redComparisons = []
-	for o in masterObjectList:
-		numExposures = len(o.photometry[colour])
-		coverage = float(numExposures) / float(numFrames) * 100.
-		print "%d has %d frames or %f%%."%(o.id, numExposures, coverage)
-		potentialComparison = {'id': o.id, 'coverage': coverage}
-		redComparisons.append(potentialComparison)
-	redComparisons = sorted(redComparisons, key= lambda c:c['coverage'], reverse=True)
-	
-	coverageThreshold = float(config.COMPARISON_THRESHOLD)
-	filteredComparisons = []
-	for comparison in redComparisons:
-		print comparison['coverage']
-		if comparison['coverage']>coverageThreshold:
-			filteredComparisons.append(comparison)
+	for colour in channels:
+		print "Switching to " + channelDescriptions[colour]
+		numFrames = findMaxFramesByColour(colour, masterObjectList)
+		print "max. frames for %s is %d."%(channelDescriptions[colour], numFrames)
+		colourComparisons = []
+		for o in masterObjectList:
+			numExposures = len(o.photometry[colour])
+			coverage = float(numExposures) / float(numFrames) * 100.
+			print "%d has %d frames or %f%%."%(o.id, numExposures, coverage)
+			potentialComparison = {'id': o.id, 'coverage': coverage}
+			colourComparisons.append(potentialComparison)
+		colourComparisons = sorted(colourComparisons, key= lambda c:c['coverage'], reverse=True)
 
-	debug.write("Of the %d objects, %d have greater than %4.2f%% coverage in the %s channel."%(len(masterObjectList), len(filteredComparisons), coverageThreshold, 'red'))
+		coverageThreshold = float(config.COMPARISON_THRESHOLD)
+		filteredComparisons = []
+		for comparison in colourComparisons:
+			if comparison['coverage']>coverageThreshold:
+				filteredComparisons.append(comparison)
 
-	if (len(filteredComparisons))>10:
-		filteredComparisons = filteredComparisons[:10]
-		debug.write("Trimmed comparisons down to %d", len(filteredComparisons))
-	print "please!", len(filteredComparisons)
+		debug.write("Of the %d objects, %d have greater than %4.2f%% coverage in the %s channel."%(len(masterObjectList), len(filteredComparisons), coverageThreshold, channelDescriptions[colour]))
 
-	if len(filteredComparisons)<3:
-		debug.write("Fewer than 3 objects can be used for comparisons... abandoning automatic comparison detection.", level = 2)
-	else: 
-		""" Compare the scatter on each....
-		"""
-		combinations = itertools.combinations(filteredComparisons, 2)
-		
-		compareList = []
-		
-		for i, c in enumerate(combinations):
-			if i>100: break;
-			print "Calculating differential photometry for object: %d vs object %d"%(c[0]['id'], c[1]['id'])
-			object1 = ultracamutils.getObjectByID(masterObjectList, c[0]['id'])
-			object2 = ultracamutils.getObjectByID(masterObjectList, c[1]['id'])
-			print object1, object2
-			object1Photometry = object1.getAllPhotometryByColour('r')
-			object2Photometry = object2.getAllPhotometryByColour('r')
-			frameOverlap = computeFrameOverlap(object1Photometry, object2Photometry)
-			overlapPercent = float(frameOverlap)/float(numFrames) * 100. 
-			if (overlapPercent>coverageThreshold):
-				differentialPhotometry = computeDifferentialPhotometry(object1Photometry, object2Photometry)
-			else:
-				debug.write("These two objects (id1: %d and id2: %d) had less than %4.2f overlapping data points... cannot be checked... abandoning them"%(c[0]['id'], c[1]['id'], coverageThreshold), level = 2) 
-			
-			print "Frame overlap:", frameOverlap, overlapPercent
-			
-			frames = [ p['frameIndex'] for p in differentialPhotometry ]
-			mags = [ p['diffMagnitude'] for p in differentialPhotometry]
-			mean = numpy.mean(mags)
-			stddev = numpy.std(mags)
-			variation = stddev / mean
-			comparison = {'p1id': c[0]['id'], 'p2id': c[1]['id'], 'cov': variation}
-			compareList.append(comparison)
-			
-			print "Mean", mean, "Std dev", stddev, "Co-efficient of variation", variation
-			
-			
-			
-		covs = [ c['cov'] for c in compareList]
-			
-		print covs
-			
-		covs_mean = numpy.mean(covs)
-		covs_stddev = numpy.std(covs)
-			
-		print "Mean COV", covs_mean, "STDDEV COV", covs_stddev, "len", len(covs)
-		
-		""" Sort the compareList """
-		compareList = sorted(compareList, key= lambda c:c['cov'], reverse=False)
-		
-		for c in compareList:
-			if abs(c['cov'] - covs_mean) < covs_stddev:
-				print "Constant:", c, "within 1 sigma"			
-			#matplotlib.pyplot.scatter(frames, mags)
-			#matplotlib.pyplot.show()
-	
-		""" Choose """
+		if (len(filteredComparisons))>10:
+			filteredComparisons = filteredComparisons[:10]
+			debug.write("Trimmed comparisons down to %d", len(filteredComparisons))
 
-	sys.exit()
+		if len(filteredComparisons)<3:
+			debug.write("Fewer than 3 objects can be used for comparisons... abandoning automatic comparison detection.", level = 2)
+		else: 
+			""" Compare the scatter on each....
+			"""
+			combinations = itertools.combinations(filteredComparisons, 2)
+
+			compareList = []
+
+			for i, c in enumerate(combinations):
+				print "Calculating differential photometry for object: %d vs object %d"%(c[0]['id'], c[1]['id'])
+				object1 = ultracamutils.getObjectByID(masterObjectList, c[0]['id'])
+				object2 = ultracamutils.getObjectByID(masterObjectList, c[1]['id'])
+				object1Photometry = object1.getAllPhotometryByColour('r')
+				object2Photometry = object2.getAllPhotometryByColour('r')
+				frameOverlap = computeFrameOverlap(object1Photometry, object2Photometry)
+				overlapPercent = float(frameOverlap)/float(numFrames) * 100. 
+				if (overlapPercent>coverageThreshold):
+					differentialPhotometry = computeDifferentialPhotometry(object1Photometry, object2Photometry)
+				else:
+					debug.write("These two objects (id1: %d and id2: %d) had less than %4.2f overlapping data points... cannot be checked... abandoning them"%(c[0]['id'], c[1]['id'], coverageThreshold), level = 2) 
+
+				print "Frame overlap:", frameOverlap, overlapPercent
+
+				frames = [ p['frameIndex'] for p in differentialPhotometry ]
+				mags = [ p['diffMagnitude'] for p in differentialPhotometry]
+				mean = numpy.mean(mags)
+				stddev = numpy.std(mags)
+				variation = stddev / mean
+				comparison = {'p1id': c[0]['id'], 'p2id': c[1]['id'], 'cov': variation}
+				compareList.append(comparison)
+
+				print "Mean", mean, "Std dev", stddev, "Co-efficient of variation", variation
+
+				#matplotlib.pyplot.subplot()
+				#matplotlib.pyplot.scatter(frames, mags)
+				#matplotlib.pyplot.show()
+
+
+			covs = [ c['cov'] for c in compareList]
+
+			covs_mean = numpy.mean(covs)
+			covs_stddev = numpy.std(covs)
+
+			print "Mean COV", covs_mean, "STDDEV COV", covs_stddev, "len", len(covs)
+
+			""" Sort the compareList """
+			compareList = sorted(compareList, key= lambda c:c['cov'], reverse=False)
+
+			""" Choose the pair with the lowest 'common co-efficient of variance' """
+			chosenPair = compareList[0]
+
+			print "Chosen:", chosenPair
+			comparison1 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p1id'])
+			comparison2 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p2id'])
+
+			comparison1.setComparisonFlag(colour)
+			comparison2.setComparisonFlag(colour)
+
+			print "1:", comparison1
+			print "2:", comparison2
+		
+
+	#sys.exit()
 			
 	""" Now look for comparison objects
 	    Choose the brightest object with info in all colours
