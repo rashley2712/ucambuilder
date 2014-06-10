@@ -68,6 +68,13 @@ def findMaxFramesByColour(colour, objectList):
 		if len(photometry)>numFrames: numFrames = len(photometry)
 	
 	return numFrames
+	
+def getComparisonPhotometry(colour, frameIndex):
+	for f in frameData:
+		if f.frameIndex==frameIndex:
+			return f.comparisonPhotometry[colour]
+	return -1
+	
 
 
 if (__name__ == "__main__"):
@@ -76,6 +83,8 @@ if (__name__ == "__main__"):
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('--xyls', action='store_true', help='Create an XY-list for each channel. Used by Astrometry.net')
 	parser.add_argument('-d', '--debuglevel', default = 1, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
+	parser.add_argument('-s', '--saveasdiff', action='store_true', help='Compute differential photometry and save all photometry as fraction of comparison stars.')
+	
 	arg = parser.parse_args()
 	
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -334,6 +343,7 @@ if (__name__ == "__main__"):
 
 
 			covs = [ c['cov'] for c in compareList]
+			
 
 			covs_mean = numpy.mean(covs)
 			covs_stddev = numpy.std(covs)
@@ -351,17 +361,30 @@ if (__name__ == "__main__"):
 			comparison2 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p2id'])
 
 			comparison1.setComparisonFlag(colour)
-			comparison2.setComparisonFlag(colour)
+			#comparison2.setComparisonFlag(colour)
 
 			print "1:", comparison1
 			print "2:", comparison2
 		
-
+		print "Computing frame comparison photometry for colour %s"%(channelDescriptions[colour])
+		# For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
+		for f in frameData:
+			frameIndex = f.frameIndex
+			photometry1 = comparison1.getPhotometry(colour, frameIndex)
+			
+			if (photometry1!=-1):
+				comparison = photometry1
+				f.setComparisonPhotometry(colour, comparison)
+			else:
+				f.setComparisonPhotometry(colour, -1)
+				
+			
+	
 	#sys.exit()
 			
 	""" Now look for comparison objects
 	    Choose the brightest object with info in all colours
-	"""
+	
 	filteredObjects = filter3ColourObjects(masterObjectList)
 	print "%d objects in total. %d have photometry in all three colours."%(len(masterObjectList), len(filteredObjects))
 	
@@ -377,8 +400,7 @@ if (__name__ == "__main__"):
 		stddev = numpy.std(deviations)
 		mean = numpy.mean(deviations)
 		print stddev
-		""" Which ones lie withing 1 sigma of this stddev?
-		"""
+		#Which ones lie withing 1 sigma of this stddev?
 		for o in filteredObjects:
 			if abs(o.deviations[c] - mean) < stddev:
 				print "Comparison: " + str(o)
@@ -386,8 +408,7 @@ if (__name__ == "__main__"):
 			else:
 				print "Variable: " + str(o)
 	
-	""" Check if the object passes the 1 sigma test in all three channels
-	"""			
+	#Check if the object passes the 1 sigma test in all three channels
 	for o in filteredObjects:
 		print o.comparisonFlags
 		o.testComparison()
@@ -398,8 +419,7 @@ if (__name__ == "__main__"):
 		else:
 			print "Variable: " + str(o)
 			
-	""" For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
-	"""
+	#For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
 	comparisonMagnitudes = []
 	for f in frameData:
 		frameIndex = f.frameIndex
@@ -408,6 +428,34 @@ if (__name__ == "__main__"):
 				magnitude = o.getPhotometry(c, frameIndex)
 				
 		
+	"""
+	
+	if arg.saveasdiff:
+		for o in masterObjectList:
+			print "Computing differential photometry for object %d"%(o.id)
+			for c in channels:
+				print channelDescriptions[c]
+				if o.comparisonFlags[c]==True:
+					print "skipping .... is a comparison"
+				else:
+					photometry = o.getAllPhotometryByColour(c)
+					
+					for p in photometry:
+						frameIndex, magnitude = p
+						comparison = getComparisonPhotometry(c, frameIndex)
+						if comparison==-1:
+							o.removePhotometry(c, frameIndex)
+						else:
+							relativePhotometry = magnitude/comparison
+							o.setPhotometry(c, frameIndex, relativePhotometry)
+							
+					
+						
+					#for f in frameData:
+					#	comparison = f.comparisonPhotometry[c]
+					#	print comparison
+				
+				
 	
 		
 	""" Now write out the objectInfo to a JSON file...
@@ -426,5 +474,22 @@ if (__name__ == "__main__"):
 	
 	json.dump(JSONObjects, outputfile)
 	outputfile.close()
+	
+	""" Also re-write the frame data
+	"""
+	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
+	outputFilename+= "_frameInfo.json"
+		
+	frameObjects = []
+		
+	for f in frameData:
+		frameObjects.append(f.toJSON())
+		
+	outputfile = open(outputFilename, "w")
+		
+	json.dump(frameObjects, outputfile)
+
+	outputfile.close()
+		
 
 	

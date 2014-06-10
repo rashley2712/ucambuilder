@@ -42,6 +42,23 @@ class colourObject:
 			
 		return -1
 
+	def setPhotometry(self, c, frameIndex, value):
+		data = self.photometry[c]
+		for e in data:
+			if e['frameIndex'] == frameIndex:
+				e['magnitude'] = value
+		self.photometry[c] = data
+	
+	def removePhotometry(self, c, frameIndex):
+		data = self.photometry[c]
+		print c, len(data)
+		for e in data:
+			if e['frameIndex'] == frameIndex:
+				data.remove(e)
+		self.photometry[c] = data
+		print c, len(data)
+		
+
 	def getAllPhotometryByColour(self, c):
 		photometry = []
 		data = self.photometry[c]
@@ -75,9 +92,9 @@ class colourObject:
 	def toJSON(self):
 		testObject = {}
 		testObject['id'] = self.id
-		testObject['isComparison'] = self.isComparison
 		testObject['colourID'] = self.colourID
 		testObject['meanPosition'] = self.meanPosition
+		testObject['comparisonFlags'] = self.comparisonFlags
 		shortPhotometry = {'r': [], 'g': [], 'b':[]}
 		for c in colourObject.colours:
 			measurements = self.photometry[c]
@@ -111,6 +128,7 @@ class frameObject:
 		if len(args)>2: self.frameIndex = args[2]
 		else: self.frameIndex = 0
 		self.objects = {'r':0, 'g':0, 'b':0}
+		self.comparisonPhotometry = {'r': -1, 'g': -1, 'b': -1}
 		
 	def setObjectCount(self, colour, number):
 		self.objects[colour] = number
@@ -120,11 +138,17 @@ class frameObject:
 		outStr+= "[r: %d, g: %d, b:%d]"%(self.objects['r'], self.objects['g'], self.objects['b'])
 		outStr+= " frameNumber: %d"%self.frameNumber
 		return outStr
+		
+		
+	def setComparisonPhotometry(self, colour, photometry):
+		self.comparisonPhotometry[colour] = photometry
+		
 	
 	def toJSON(self):
 		testObject = {'frameNumber': self.frameNumber, 'frameIndex': self.frameIndex}
 		testObject['objects'] = self.objects
 		testObject['MJD'] = self.MJD
+		testObject['c'] = self.comparisonPhotometry
 		
 		jsonString = json.dumps(testObject)
 		
