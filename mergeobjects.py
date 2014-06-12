@@ -361,7 +361,7 @@ if (__name__ == "__main__"):
 			comparison2 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p2id'])
 
 			comparison1.setComparisonFlag(colour)
-			#comparison2.setComparisonFlag(colour)
+			comparison2.setComparisonFlag(colour)
 
 			print "1:", comparison1
 			print "2:", comparison2
