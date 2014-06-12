@@ -366,17 +366,17 @@ if (__name__ == "__main__"):
 			print "1:", comparison1
 			print "2:", comparison2
 		
-		print "Computing frame comparison photometry for colour %s"%(channelDescriptions[colour])
-		# For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
-		for f in frameData:
-			frameIndex = f.frameIndex
-			photometry1 = comparison1.getPhotometry(colour, frameIndex)
+			print "Computing frame comparison photometry for colour %s"%(channelDescriptions[colour])
+			# For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
+			for f in frameData:
+				frameIndex = f.frameIndex
+				photometry1 = comparison1.getPhotometry(colour, frameIndex)
 			
-			if (photometry1!=-1):
-				comparison = photometry1
-				f.setComparisonPhotometry(colour, comparison)
-			else:
-				f.setComparisonPhotometry(colour, -1)
+				if (photometry1!=-1):
+					comparison = photometry1
+					f.setComparisonPhotometry(colour, comparison)
+				else:
+					f.setComparisonPhotometry(colour, -1)
 				
 			
 	
