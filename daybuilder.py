@@ -4,10 +4,7 @@ import jinja2
 import sys, argparse, subprocess, re, os, json
 import classes
 
-
 if __name__ == "__main__":
-	
-		
 	parser = argparse.ArgumentParser(description='Chains together the necessary steps to run the pipeline for one full day')
 	parser.add_argument('date', type=str, help='Ultracam date  [eg 2013-07-21]')
 	parser.add_argument('-d', '--debuglevel', default = 2, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
