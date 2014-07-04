@@ -408,6 +408,10 @@ if __name__ == "__main__":
 		runInfo.numWindows = frameInfo.numWindows
 		xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
 		runInfo.maxExtents = [xmin, xmax, ymin, ymax]
+		sexParams = runInfo.addSexInfo(config)
+		debug.write("Grabbed the following sextractor paramaters...", level = 3);
+		debug.write(sexParams, level = 3);
+		
 		
 		runInfo.writeSelf(config)
 		

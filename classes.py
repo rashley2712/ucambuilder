@@ -108,6 +108,35 @@ class runObject:
 			if (runIdentifier==self.runID):
 				self.comment = line[8:]
 			
+	def addSexInfo(self, config):
+		""" Adds info about the sextractor parameters to this object
+		"""
+		self.sexMagnitude = config.SEX_MAGNITUDE;
+		allSexOptions = {}
+		self.sexOptions = {'ANALYSIS_THRESH': None, 'SATUR_LEVEL': None, 'PHOT_APERTURES': None, 'DETECT_MINAREA': None, 'DETECT_THRESH': None, \
+		                   'PHOT_AUTOPARAMS': None, 'BACK_SIZE': None, 'BACK_FILTERSIZE': None}
+		# Now read the default.sex file for more parameters
+		try:
+			sexConfigFile = open("default.sex", "r")
+		except IOError:
+			print "Warning: Cannot find the sextractor 'default.sex' file %s ... will ignore capturing of this info."%filename
+			return
+
+		for line in sexConfigFile:
+			if(line[0]!="#"):      # Ignore lines that are comments
+				if len(line.split())>=2:
+					option = line.split()[0]
+					value = line.split()[1]
+					allSexOptions[option] = value
+		
+		sexConfigFile.close()
+		
+		# Filter out only the sextractor parameters that we care about
+		for lookup in self.sexOptions:
+			self.sexOptions[lookup] = allSexOptions[lookup]
+			
+		return self.sexOptions
+	
 		
 	def updateRunInfo(self, object):
 		self.comment = object['comment']
@@ -138,6 +167,12 @@ class runObject:
 		outputObject["dataProcessed"] = self.dataProcessed
 		outputObject['numWindows'] = self.numWindows
 		outputObject['maxExtents'] = self.maxExtents
+		
+		if self.sexMagnitude!=None:
+			outputObject['sexMagnitude'] = self.sexMagnitude
+			
+		if self.sexOptions!=None:
+			outputObject['sexOptions'] = self.sexOptions
 		
 		JSONfile = open(filename, 'w')
 		json.dump(outputObject, JSONfile)
