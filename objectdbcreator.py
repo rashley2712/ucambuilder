@@ -173,6 +173,7 @@ if __name__ == "__main__":
 	allObjects = { 'r': [], 'g': [], 'b':[]}
 
 	config = ultracamutils.readConfigFile(arg.configfile)
+	
 	debug = classes.debugObject(config.DEBUG)
 	debug.toggleTimeLog()
 	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
@@ -274,7 +275,7 @@ if __name__ == "__main__":
 				
 				tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, channel, windowImage, arg.runname)
 				catFilename = ultracamutils.runSex(tmpFilename)
-				newObjectsinWindow = ultracamutils.readSexObjects(catFilename)
+				newObjectsinWindow = ultracamutils.readSexObjects(catFilename, config.SEX_MAGNITUDE)
 			
 				newObjectsinWindow = ultracamutils.rejectBadObjects(newObjectsinWindow)
 			

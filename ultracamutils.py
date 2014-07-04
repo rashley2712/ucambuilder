@@ -204,7 +204,7 @@ def runSex(tmpFilename):
     return catFilename
     
 
-def readSexObjects(catFilename):
+def readSexObjects(catFilename, sexMagnitude):
 	""" Reads a sextractor .cat file and returns a list of objects in that file
     """
 	sexCatalog = astropy.io.fits.open(catFilename)
@@ -218,7 +218,8 @@ def readSexObjects(catFilename):
 		object['id']     = item[columns.names.index("NUMBER")]
 		object['x']      = item[columns.names.index("X_IMAGE")]
 		object['y']      = item[columns.names.index("Y_IMAGE")]
-		object['counts'] = item[columns.names.index("FLUX_AUTO")]
+		#object['counts'] = item[columns.names.index("FLUX_APER")]
+		object['counts'] = item[columns.names.index(sexMagnitude)]
 		object['mag']    = item[columns.names.index("MAG_AUTO")]
 		object['radius'] = item[columns.names.index("FLUX_RADIUS")]
 		object['flags']  = item[columns.names.index("FLAGS")]

@@ -198,7 +198,7 @@ class configObject:
         self.RUNTEMPLATE = "/home/rashley/astro/ucamsite/templates/runxxx.jinja"
         self.WORKINGDIR = "/storage/astro2/phrnaw/ucamsite"
         self.COMPARISON_THRESHOLD = 95.
-
+        self.SEX_MAGNITUDE = "FLUX_AUTO"
 
     def __setitem__(self, item, value):
 		setattr(self, item, value)
