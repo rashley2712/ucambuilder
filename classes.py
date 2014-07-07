@@ -106,7 +106,7 @@ class runObject:
 		for line in dataFile:
 			runIdentifier = line[:6]
 			if (runIdentifier==self.runID):
-				self.comment = line[8:]
+				self.comment = line[7:]
 			
 	def addSexInfo(self, config):
 		""" Adds info about the sextractor parameters to this object
