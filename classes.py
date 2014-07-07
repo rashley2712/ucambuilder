@@ -168,10 +168,10 @@ class runObject:
 		outputObject['numWindows'] = self.numWindows
 		outputObject['maxExtents'] = self.maxExtents
 		
-		if self.sexMagnitude!=None:
+		if hasattr(self, 'sexMagnitude'):
 			outputObject['sexMagnitude'] = self.sexMagnitude
 			
-		if self.sexOptions!=None:
+		if hasattr(self, 'sexOptions'):
 			outputObject['sexOptions'] = self.sexOptions
 		
 		JSONfile = open(filename, 'w')
