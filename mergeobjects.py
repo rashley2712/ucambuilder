@@ -335,13 +335,12 @@ if (__name__ == "__main__"):
 					print "Mean", mean, "Std dev", stddev, "Co-efficient of variation", variation
 				else:
 					debug.write("These two objects (id1: %d and id2: %d) had less than %4.2f overlapping data points... cannot be checked... abandoning them"%(c[0]['id'], c[1]['id'], coverageThreshold), level = 2) 
-
-
+			
 				#matplotlib.pyplot.subplot()
 				#matplotlib.pyplot.scatter(frames, mags)
 				#matplotlib.pyplot.show()
 
-
+			print "CompareList length:", len(compareList)
 			covs = [ c['cov'] for c in compareList]
 			
 
