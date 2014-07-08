@@ -322,20 +322,20 @@ if (__name__ == "__main__"):
 				overlapPercent = float(frameOverlap)/float(numFrames) * 100. 
 				if (overlapPercent>coverageThreshold):
 					differentialPhotometry = computeDifferentialPhotometry(object1Photometry, object2Photometry)
+					print "Frame overlap:", frameOverlap, overlapPercent
+
+					frames = [ p['frameIndex'] for p in differentialPhotometry ]
+					mags = [ p['diffMagnitude'] for p in differentialPhotometry]
+					mean = numpy.mean(mags)
+					stddev = numpy.std(mags)
+					variation = stddev / mean
+					comparison = {'p1id': c[0]['id'], 'p2id': c[1]['id'], 'cov': variation}
+					compareList.append(comparison)
+
+					print "Mean", mean, "Std dev", stddev, "Co-efficient of variation", variation
 				else:
 					debug.write("These two objects (id1: %d and id2: %d) had less than %4.2f overlapping data points... cannot be checked... abandoning them"%(c[0]['id'], c[1]['id'], coverageThreshold), level = 2) 
 
-				print "Frame overlap:", frameOverlap, overlapPercent
-
-				frames = [ p['frameIndex'] for p in differentialPhotometry ]
-				mags = [ p['diffMagnitude'] for p in differentialPhotometry]
-				mean = numpy.mean(mags)
-				stddev = numpy.std(mags)
-				variation = stddev / mean
-				comparison = {'p1id': c[0]['id'], 'p2id': c[1]['id'], 'cov': variation}
-				compareList.append(comparison)
-
-				print "Mean", mean, "Std dev", stddev, "Co-efficient of variation", variation
 
 				#matplotlib.pyplot.subplot()
 				#matplotlib.pyplot.scatter(frames, mags)
