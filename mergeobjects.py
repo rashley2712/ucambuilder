@@ -340,45 +340,47 @@ if (__name__ == "__main__"):
 				#matplotlib.pyplot.scatter(frames, mags)
 				#matplotlib.pyplot.show()
 
-			print "CompareList length:", len(compareList)
-			covs = [ c['cov'] for c in compareList]
-			
+			if len(compareList)<1:
+				debug.write("No potential comparisons found.... abandoning...for %s.")
+			else:
+				covs = [ c['cov'] for c in compareList]
 
-			covs_mean = numpy.mean(covs)
-			covs_stddev = numpy.std(covs)
 
-			print "Mean COV", covs_mean, "STDDEV COV", covs_stddev, "len", len(covs)
+				covs_mean = numpy.mean(covs)
+				covs_stddev = numpy.std(covs)
 
-			""" Sort the compareList """
-			compareList = sorted(compareList, key= lambda c:c['cov'], reverse=False)
+				print "Mean COV", covs_mean, "STDDEV COV", covs_stddev, "len", len(covs)
 
-			""" Choose the pair with the lowest 'common co-efficient of variance' """
-			chosenPair = compareList[0]
+				""" Sort the compareList """
+				compareList = sorted(compareList, key= lambda c:c['cov'], reverse=False)
 
-			print "Chosen:", chosenPair
-			comparison1 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p1id'])
-			comparison2 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p2id'])
+				""" Choose the pair with the lowest 'common co-efficient of variance' """
+				chosenPair = compareList[0]
 
-			comparison1.setComparisonFlag(colour)
-			comparison2.setComparisonFlag(colour)
+				print "Chosen:", chosenPair
+				comparison1 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p1id'])
+				comparison2 = ultracamutils.getObjectByID(masterObjectList, chosenPair['p2id'])
 
-			print "1:", comparison1
-			print "2:", comparison2
-		
-			print "Computing frame comparison photometry for colour %s"%(channelDescriptions[colour])
-			# For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
-			for f in frameData:
-				frameIndex = f.frameIndex
-				photometry1 = comparison1.getPhotometry(colour, frameIndex)
-			
-				if (photometry1!=-1):
-					comparison = photometry1
-					f.setComparisonPhotometry(colour, comparison)
-				else:
-					f.setComparisonPhotometry(colour, -1)
-				
-			
-	
+				comparison1.setComparisonFlag(colour)
+				comparison2.setComparisonFlag(colour)
+
+				print "1:", comparison1
+				print "2:", comparison2
+
+				print "Computing frame comparison photometry for colour %s"%(channelDescriptions[colour])
+				# For each frame in the frame list, create a comparison magnitude, equal to the average of the comparisons on that frame
+				for f in frameData:
+					frameIndex = f.frameIndex
+					photometry1 = comparison1.getPhotometry(colour, frameIndex)
+
+					if (photometry1!=-1):
+						comparison = photometry1
+						f.setComparisonPhotometry(colour, comparison)
+					else:
+						f.setComparisonPhotometry(colour, -1)
+
+
+
 	#sys.exit()
 			
 	""" Now look for comparison objects
