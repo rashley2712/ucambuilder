@@ -8,24 +8,34 @@ import argparse, os, copy
 import wcsclasses
 	
 	
+def buildFrameLookup():
+	""" Builds a lookup table for the frameObjects. Pass in an MJD, get a frameIndex back
+	"""
+	frameLookup = {}
+	debug.write("Building frame lookup table", level = 3)
+	for f in frameData:
+		frameLookup[f.MJD] = f.frameIndex
+		
+	return frameLookup
+		
+	
 def addPhotometry(colourObject, colour, exposureArray):
-	exposureArray = o.exposures
+	totalExposures = len(exposureArray)
+	debug.write("Moving the photometry into the new object. There are %d exposures for %s."%(totalExposures, colour), level = 3)
 	for e in exposureArray:
 		# Match the exposure with a frame based on the MJD
 		MJD = e.MJD
-		frameIndex = -1
-		for frame in frameData:
-			if frame.MJD == MJD:
-				frameIndex = frame.frameIndex
-				frameObject = frame
-				break
-			
+		frameIndex = frameLookup[MJD]
+		
 		newExposure = {'frameIndex': frameIndex}
 		newExposure['magnitude'] = e.counts
 		newExposure['fwhm'] = e.FWHM
 		newExposure['position'] = e.centroid
 			
-		colourObject.addExposure(colour, newExposure)
+		numExposures = colourObject.addExposure(colour, newExposure)
+		sys.stdout.write('\r' + str(numExposures))
+		
+	sys.stdout.write('\n')
 		
 def filter3ColourObjects(objects):
 	""" Returns a smaller list containing only those objects that have photometry in all three channels
@@ -125,6 +135,8 @@ if (__name__ == "__main__"):
 		frameData.append(frame)
 
 	debug.write("Loaded info for %d frames."%(len(frameData)))
+	
+	frameLookup = buildFrameLookup()
 	
 	""" Load the objects from the .json files.... channel by channel (r, g, b)
 	"""

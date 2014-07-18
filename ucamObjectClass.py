@@ -21,6 +21,7 @@ class colourObject:
 		
 	def addExposure(self, colour, exposure):
 		self.photometry[colour].append(exposure)
+		return len(self.photometry[colour])
 		
 	def calculateSigma(self):
 		for c in colourObject.colours:

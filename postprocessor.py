@@ -66,6 +66,9 @@ if (__name__ == "__main__"):
 	for c in channels:
 			objects = allObjects[c]
 			beforeCount = len(objects)
+			if beforeCount<10: 
+				debug.write("Skipping this step as there are too few objects", level = 2)
+				continue
 			for o in objects:
 				meanFWHM = o.calculateMeanFWHM()
 			objects = ultracamutils.filterOutPixels(objects, pixelThreshold)
