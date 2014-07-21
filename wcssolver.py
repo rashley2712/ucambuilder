@@ -16,6 +16,7 @@ if __name__ == "__main__":
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('-f', '--forcesolve', action='store_true', help='Force a "solve" even if we already have a solution')
 	parser.add_argument('-p', '--preview', action='store_true', help='Show a preview of the check plots.')
+	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
 
 	arg = parser.parse_args()
 

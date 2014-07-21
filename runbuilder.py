@@ -11,6 +11,7 @@ if __name__ == "__main__":
 	parser.add_argument('-d', '--debuglevel', default = 2, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames (default = all frames)')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
+	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
 	arg = parser.parse_args()
 
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -32,17 +33,36 @@ if __name__ == "__main__":
 		os.mkdir(outputDirectory)
 
 	print arg
-	dString = "-d" + str(arg.debuglevel)
-	if arg.numframes!=None:
-		nString = "-n" + str(arg.numframes)
-		subprocess.call(["objectdbcreator.py", arg.runname, nString, dString])
-	else:
-		subprocess.call(["objectdbcreator.py", arg.runname, dString])
-
-	xylsString = "--xyls"
-	subprocess.call(["postprocessor.py", arg.runname, dString, xylsString])
 	
-	subprocess.call(["wcssolver.py", arg.runname, dString])
+	# Run OBJECTDBCREATOR
+	objectdbcreatorCommand = ['objectdbcreator.py']
+	objectdbcreatorCommand.append(arg.runname)
+	dString = "-d" + str(arg.debuglevel)
+	objectdbcreatorCommand.append(dString)
+	if arg.numframes!=None:
+		objectdbcreatorCommand.append("-n" + str(arg.numframes))
+	if arg.version!='primary':
+		objectdbcreatorCommand.append("-v" + str(arg.version))
+	subprocess.call(objectdbcreatorCommand)
+
+
+	# Run POSTPROCESSOR
+	postprocessorCommand = ['postprocessor.py']
+	postprocessorCommand.append(arg.runname)
+	postprocessorCommand.append("--xyls")
+	postprocessorCommand.append(dString)
+	if arg.version!='primary':
+		postprocessorCommand.append('-v' + str(arg.version))
+	subprocess.call(postprocessorCommand)
+	
+	# Run WCSSOLVER
+	wcssolverCommand = ['wcssolver.py']
+	wcssolverCommand.append(arg.runname)
+	wcssolverCommand.append(dString)
+	if arg.version!='primary':
+		wcssolverCommand.append('-v' + str(arg.version))
+	subprocess.call(wcssolverCommand)
+	
 
 	subprocess.call(["mergeobjects.py", arg.runname, dString])
 

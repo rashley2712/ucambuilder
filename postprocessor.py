@@ -11,6 +11,7 @@ if (__name__ == "__main__"):
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('--xyls', action='store_true', help='Create an XY-list for each channel. Used by Astrometry.net')
 	parser.add_argument('-d', '--debuglevel', default = 1, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
+	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
 	arg = parser.parse_args()
 	
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -39,7 +40,10 @@ if (__name__ == "__main__"):
 	"""
 	for c in channels:
 		debug.write("Loading the json file for the %s objects."%(channelDescriptions[c]), level = 2)
-		jsonFilename = ultracamutils.addPaths(config.WORKINGDIR, runName) + "_" + c + "_raw.json"	
+		jsonFilename = ultracamutils.addPaths(config.WORKINGDIR, runName) + "_" + c + "_raw.json"
+		if (arg.version!='primary'):
+			jsonFilename = ultracamutils.addPaths(config.WORKINGDIR, runName) + "_" + c + "_" + str(arg.version) + "_raw.json"
+				
 		objects = ultracamutils.buildObjectsFromJSON(jsonFilename)
 		allObjects[c] = objects
 		debug.write("%d %s objects loaded."%(len(allObjects[c]), channelDescriptions[c]), level = 2)
@@ -115,6 +119,9 @@ if (__name__ == "__main__"):
 
 			runDate, runNumber = ultracamutils.separateRunNameAndDate(arg.runname)
 			FITSFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_" + c + ".xyls"
+			if arg.version!='primary':
+				FITSFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_" + c + "_" + str(arg.version) + ".xyls"
+				
 			debug.write("Writing FITS file: " + FITSFilename, level=2)
 	
 			col1 = astropy.io.fits.Column(name='ID', format='I', array=IDs)

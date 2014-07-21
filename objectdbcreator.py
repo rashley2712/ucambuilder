@@ -163,6 +163,7 @@ if __name__ == "__main__":
 	parser.add_argument('-s', '--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
 	parser.add_argument('-C', '--channels', default='rgb', type=str, help='Which channels to run the extraction on \'rgb\'')
+	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
 	arg = parser.parse_args()
 
 	channelNames = []
@@ -351,6 +352,8 @@ if __name__ == "__main__":
 	for channel in channelNames:
 		runIdent = arg.runname
 		imageFilename = utils.addPaths(config.SITE_PATH,runIdent) + "_" + channel + ".png"
+		if (arg.version!='primary'):
+			imageFilename = utils.addPaths(config.SITE_PATH,runIdent) + "_" + channel + "_" + str(arg.version) + ".png"		
 		stackedImage = stackedImages[channel]
 		fullImage =  numpy.zeros((frameInfo.nxmax, frameInfo.nymax))
 		for j in range(frameInfo.numWindows):
@@ -396,7 +399,10 @@ if __name__ == "__main__":
 			runIdent = arg.runname
 		
 			outputFilename = utils.addPaths(config.WORKINGDIR,runIdent) 
-			outputFilename+= "_" + channel + "_raw.json"
+			if arg.version!='primary':
+				outputFilename+= "_" + channel + "_" + str(arg.version) + "_raw.json"
+			else:
+				outputFilename+= "_" + channel + "_raw.json"
 			debug.write("Writing JSON file: " + outputFilename, level = 2)
 	
 			outputfile = open( outputFilename, "w" )
@@ -409,15 +415,16 @@ if __name__ == "__main__":
 		xmin, xmax, ymin, ymax = frameInfo.getMaxExtents()
 		runInfo.maxExtents = [xmin, xmax, ymin, ymax]
 		sexParams = runInfo.addSexInfo(config)
-		debug.write("Grabbed the following sextractor paramaters...", level = 3);
-		debug.write(sexParams, level = 3);
-		
-		
+		debug.write("Grabbed the following sextractor parameters...", level = 3);
+		debug.write(sexParams, level = 3)
+			
 		runInfo.writeSelf(config)
 		
 		""" Now write out the frameData
 		"""
 		outputFilename = ultracamutils.addPaths(config.SITE_PATH, runIdent)
+		if arg.version!='primary':
+			outputFilename+= "_" + str(arg.version)
 		outputFilename+= "_frameInfo.json"
 		
 		frameObjects = []
