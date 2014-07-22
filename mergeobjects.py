@@ -94,6 +94,7 @@ if (__name__ == "__main__"):
 	parser.add_argument('--xyls', action='store_true', help='Create an XY-list for each channel. Used by Astrometry.net')
 	parser.add_argument('-d', '--debuglevel', default = 1, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('-s', '--saveasdiff', action='store_true', help='Compute differential photometry and save all photometry as fraction of comparison stars.')
+	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
 	
 	arg = parser.parse_args()
 	
@@ -107,7 +108,10 @@ if (__name__ == "__main__"):
 	
 	debug = classes.debugObject(arg.debuglevel)
 	debug.write("Getting run info from the file:" + config.RUNINFO, level = 2)
-	runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
+	runInfo = classes.runObject(runDate, runID)
+	runInfo.version = arg.version
+	runInfo.loadSelf(config)
+	# runInfo = ultracamutils.getRunInfo(config.RUNINFO, arg.runname)
 	
 	debug.write("Run Info:\n----------------------", level = 2)
 	debug.write(runInfo, level = 2)
@@ -122,6 +126,9 @@ if (__name__ == "__main__"):
 	""" Load the information about the frames
 	"""
 	jsonFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_frameInfo.json"
+	if (arg.version!='primary'):
+		jsonFilename = ultracamutils.addPaths(config.SITE_PATH, runName) + "_" + str(arg.version) + "_frameInfo.json"
+
 	debug.write("Loading frame info from %s"%(jsonFilename), level = 2)
 	jsonFile = open(jsonFilename, 'r')
 	jsonObjects = json.loads(jsonFile.read())
@@ -142,6 +149,8 @@ if (__name__ == "__main__"):
 	"""
 	for c in channels:
 		jsonFilename = ultracamutils.addPaths(config.WORKINGDIR, runName) + "_" + c + ".json"	
+		if arg.version!='primary':
+			jsonFilename = ultracamutils.addPaths(config.WORKINGDIR, runName) + "_" + c + "_" + str(arg.version) + ".json"			
 		debug.write("Loading the json file for the %s objects from path: %s"%(channelDescriptions[c], jsonFilename), level = 2)
 		objects = ultracamutils.buildObjectsFromJSON(jsonFilename)
 		allObjects[c] = objects
@@ -474,6 +483,8 @@ if (__name__ == "__main__"):
 	""" Now write out the objectInfo to a JSON file...
 	"""
 	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
+	if arg.version!='primary':
+		outputFilename+="_" + str(arg.version)
 	outputFilename+= "_objects.json"
 
 	debug.write("Writing %d objects to: %s"%(len(masterObjectList), outputFilename))
@@ -491,6 +502,7 @@ if (__name__ == "__main__"):
 	""" Also re-write the frame data
 	"""
 	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
+		outputFilename+="_" + str(arg.version)
 	outputFilename+= "_frameInfo.json"
 		
 	frameObjects = []

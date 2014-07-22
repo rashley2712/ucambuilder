@@ -10,6 +10,7 @@ if __name__ == "__main__":
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-d', '--debuglevel', default = 1, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
+	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
 	arg = parser.parse_args()
 
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -26,6 +27,7 @@ if __name__ == "__main__":
 	"""
 	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
 	runInfo = classes.runObject(runDate, runID)
+	runInfo.version = arg.version
 	runInfo.loadSelf(config)
 	if runInfo.comment=="":
 		runInfo.checkForComments(config.ULTRACAMRAW)
@@ -47,9 +49,12 @@ if __name__ == "__main__":
 						"date" : date, 
 						"comments" : runInfo.comment,
 						"object" : runInfo.target,
-						"duration" : runDuration }
+						"duration" : runDuration,
+						"version" : runInfo.version }
 	
 	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
+	if arg.version!='primary':
+		outputFilename+="_" + str(arg.version)
 	outputFilename+= ".html"
 	
 	debug.write("Writing HTML file to: %s"%(outputFilename))

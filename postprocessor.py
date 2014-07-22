@@ -26,6 +26,7 @@ if (__name__ == "__main__"):
 	
 	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
 	runInfo = classes.runObject(runDate, runID)
+	runInfo.version = arg.version
 	runInfo.loadSelf(config)
 	
 	debug.write("Run Info:\n----------------------", level = 2)
@@ -146,7 +147,10 @@ if (__name__ == "__main__"):
 if (int(config.WRITE_JSON)==1):
 	for c in channels:
 		outputFilename = ultracamutils.addPaths(config.WORKINGDIR,runName) 
-		outputFilename+= "_" + c + ".json"
+		outputFilename+= "_" + c
+		if arg.version!='primary':
+			outputFilename+= "_" + str(arg.version)
+		outputFilename+= ".json"
 		debug.write("Writing the refined %s object catalogs to .json file: %s"%(channelDescriptions[c], outputFilename), level =2 )
 		objects = allObjects[c]
 		sortedObjects = sorted(objects, key= lambda p:p.meanFlux, reverse=True)

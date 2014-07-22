@@ -12,6 +12,7 @@ if __name__ == "__main__":
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames (default = all frames)')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
+	parser.add_argument('-w', '--skipwcs', action='store_true', help='Skip the WCS solving step of the pipeline.')
 	arg = parser.parse_args()
 
 	config = ultracamutils.readConfigFile(arg.configfile)
@@ -56,17 +57,32 @@ if __name__ == "__main__":
 	subprocess.call(postprocessorCommand)
 	
 	# Run WCSSOLVER
-	wcssolverCommand = ['wcssolver.py']
-	wcssolverCommand.append(arg.runname)
-	wcssolverCommand.append(dString)
-	if arg.version!='primary':
-		wcssolverCommand.append('-v' + str(arg.version))
-	subprocess.call(wcssolverCommand)
+	if not arg.skipwcs:
+		wcssolverCommand = ['wcssolver.py']
+		wcssolverCommand.append(arg.runname)
+		wcssolverCommand.append(dString)
+		if arg.version!='primary':
+			wcssolverCommand.append('-v' + str(arg.version))
+		subprocess.call(wcssolverCommand)
 	
+	# Run MERGEOBJECTS
+	mergeobjectsCommand = ['mergeobjects.py']
+	mergeobjectsCommand.append(arg.runname)
+	mergeobjectsCommand.append(dString)
+	if arg.version!='primary':
+		mergeobjectsCommand.append('-v' + str(arg.version))
+	subprocess.call(mergeobjectsCommand)
 
-	subprocess.call(["mergeobjects.py", arg.runname, dString])
-
-	subprocess.call(["create_html.py", arg.runname, dString])
+	# Run CREATE_HTML
+	createHTMLCommand = ['create_html.py']
+	createHTMLCommand.append(arg.runname)
+	createHTMLCommand.append(dString)
+	if arg.version!='primary':
+		createHTMLCommand.append('-v' + str(arg.version))
+	subprocess.call(createHTMLCommand)
 	
 	outputURL = ultracamutils.addPaths(config.ROOTURL, arg.runname + ".html")
+	if arg.version!='primary':
+		outputURL = ultracamutils.addPaths(config.ROOTURL, arg.runname + "_" + str(arg.version) + ".html")
+		
 	print "The output for this run is available at: %s"%outputURL

@@ -55,12 +55,14 @@ class runObject:
 		self.dataProcessed = False
 		self.numWindows = 0
 		self.maxExtents = [0, 0, 0, 0]
+		self.version = 'primary'
 		
 	def loadSelf(self, configData):
 		""" Checks to see if a saved file exists that contains info for this run. Loads it into this object.
 		"""
 		filename = ultracamutils.addPaths(configData.SITE_PATH, self.runDate)
 		filename = ultracamutils.addPaths(filename, self.runID)
+		if (self.version!='primary'): filename+= "_" + str(self.version)
 		filename+= "_info.json"
 		print "Trying to load myself from a file.", filename
 		if os.path.exists(filename):
@@ -152,6 +154,7 @@ class runObject:
 		"""
 		filename = ultracamutils.addPaths(configData.SITE_PATH, self.runDate)
 		filename = ultracamutils.addPaths(filename, self.runID)
+		if self.version!='primary': filename+= "_" + str(self.version);
 		filename+= "_info.json"
 		print "Updating runinfo in file: ", filename
 		
