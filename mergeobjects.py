@@ -108,6 +108,8 @@ if (__name__ == "__main__"):
 	
 	debug = classes.debugObject(arg.debuglevel)
 	debug.write("Getting run info from the file:" + config.RUNINFO, level = 2)
+	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
+
 	runInfo = classes.runObject(runDate, runID)
 	runInfo.version = arg.version
 	runInfo.loadSelf(config)
@@ -502,6 +504,7 @@ if (__name__ == "__main__"):
 	""" Also re-write the frame data
 	"""
 	outputFilename = ultracamutils.addPaths(config.SITE_PATH, arg.runname)
+	if arg.version!='primary':
 		outputFilename+="_" + str(arg.version)
 	outputFilename+= "_frameInfo.json"
 		
