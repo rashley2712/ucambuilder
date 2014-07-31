@@ -305,6 +305,7 @@ if (__name__ == "__main__"):
 		print "Switching to " + channelDescriptions[colour]
 		numFrames = findMaxFramesByColour(colour, masterObjectList)
 		print "max. frames for %s is %d."%(channelDescriptions[colour], numFrames)
+		if numFrames==0: continue;
 		colourComparisons = []
 		for o in masterObjectList:
 			numExposures = len(o.photometry[colour])
