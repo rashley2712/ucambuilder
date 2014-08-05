@@ -101,6 +101,7 @@ subprocess.call(["mkdir", newFolder])
 rdat  = ultracam.Rdata(runFilename, startFrame, server=False)
 numFrames = rdat.ntotal()
 frameMJD = 0
+if requestedNumFrames==-1: requestedNumFrames=numFrames
 
 debug.write("Total frames in %s: %d"%(runName,numFrames))
 debug.write("nBlue: " + str(rdat.nblue))

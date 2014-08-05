@@ -225,6 +225,7 @@ if __name__ == "__main__":
 			
 			wcs.setSolution(equinox, referenceCoord, referencePixel, CD_array)
 			
+			
 			print wcs
 			
 			print wcs.getWorldCoord( (512, 512) )

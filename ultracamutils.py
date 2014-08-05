@@ -405,6 +405,21 @@ def writeFriendlyTimeMinutes(minutes):
 	
 	return timeStr
 
+def toSexagesimal(world):
+	raDeg = world[0]
+	ra = raDeg/15.
+	hours = int(ra)
+	minutes = (ra - int(ra)) * 60
+	seconds = (minutes - int(minutes)) * 60
+				
+	dec = world[1]
+	decDegrees = int(dec)
+	decMinutes = (dec - int(dec)) * 60
+	decSeconds = (decMinutes - int(decMinutes)) * 60
+		
+	outString = "RA: %02d:%02d:%02.1f"%(hours, minutes, seconds)
+	outString+= " DEC: %02d:%02d:%02.3f"%(dec, decMinutes, decSeconds)
+	return outString
 
 def writeFriendlyTimeSeconds(seconds):
 	""" Writes a friendly time (in hours and/or minutes) based on an input of seconds
