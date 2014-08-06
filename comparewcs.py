@@ -138,21 +138,23 @@ if __name__ == "__main__":
 	print "Test pixel:", pixel
 	
 	gridSize = 1024
+	gridSpacing = 15
+	arrowScale = 1.2
 	greenOffsetx = numpy.zeros((gridSize, gridSize))
 	greenOffsety = numpy.zeros((gridSize, gridSize))
 	blueOffsetx = numpy.zeros((gridSize, gridSize))
 	blueOffsety = numpy.zeros((gridSize, gridSize))
 	
-	for i in range(0, gridSize, 10):
+	for i in range(0, gridSize, gridSpacing):
 		print i
-		for j in range(0, gridSize, 10): 
+		for j in range(0, gridSize, gridSpacing): 
 			greenPixel = (i, j)
 			world = wcsSolutions['g'].getWorldSIP(greenPixel)
 			redPixel = wcsSolutions['r'].getPixel(world)
 			offset = (greenPixel[0] - redPixel[0], greenPixel[1] - redPixel[1])
 			greenOffsetx[i][j] = offset[0]
 			greenOffsety[i][j] = offset[1]
-			matplotlib.pyplot.plot([i, i+offset[0]], [j, j+offset[1]], lw=1, color='green')
+			#matplotlib.pyplot.plot([i, i+offset[0] * arrowScale], [j, j+offset[1] * arrowScale], lw=1, color='green')
 			
 			bluePixel = (i, j)
 			world = wcsSolutions['b'].getWorldSIP(greenPixel)
@@ -160,7 +162,7 @@ if __name__ == "__main__":
 			offset = (bluePixel[0] - redPixel[0], bluePixel[1] - redPixel[1])
 			blueOffsetx[i][j] = offset[0]
 			blueOffsety[i][j] = offset[1]
-			#matplotlib.pyplot.plot([i, i+offset[0]], [j, j+offset[1]], lw=1, color='blue')
+			matplotlib.pyplot.plot([i, i + offset[0] * arrowScale ], [j, j + offset[1] * arrowScale ], lw=1, color='blue')
 			
 		
 	print greenOffsetx
