@@ -138,8 +138,8 @@ if __name__ == "__main__":
 	print "Test pixel:", pixel
 	
 	gridSize = 1024
-	gridSpacing = 15
-	arrowScale = 1.2
+	gridSpacing = 20
+	arrowScale = 2.0
 	greenOffsetx = numpy.zeros((gridSize, gridSize))
 	greenOffsety = numpy.zeros((gridSize, gridSize))
 	blueOffsetx = numpy.zeros((gridSize, gridSize))
@@ -154,7 +154,7 @@ if __name__ == "__main__":
 			offset = (greenPixel[0] - redPixel[0], greenPixel[1] - redPixel[1])
 			greenOffsetx[i][j] = offset[0]
 			greenOffsety[i][j] = offset[1]
-			#matplotlib.pyplot.plot([i, i+offset[0] * arrowScale], [j, j+offset[1] * arrowScale], lw=1, color='green')
+			matplotlib.pyplot.plot([i, i+offset[0] * arrowScale], [j, j+offset[1] * arrowScale], lw=1, color='green')
 			
 			bluePixel = (i, j)
 			world = wcsSolutions['b'].getWorldSIP(greenPixel)
