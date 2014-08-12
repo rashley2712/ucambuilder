@@ -289,8 +289,18 @@ if __name__ == "__main__":
 				yll = frameInfo.getWindow(j).yll 
 				xsize = frameInfo.getWindow(j).xsize 
 				ysize = frameInfo.getWindow(j).ysize 
+				#print "windowImage.shape:", windowImage.shape
+				#print "assembledChannelFrame.shape:", assembledChannelFrame.shape
 			
-				assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] = assembledChannelFrame[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 20, 98)
+				leftPixel = xll-1
+				rightPixel = xll-1+xsize
+				bottomPixel = yll-1
+				topPixel = yll-1+ysize
+				#print "leftPixel", leftPixel
+				#print "rightPixel", rightPixel
+				#print "bottomPixel", bottomPixel
+				#print "topPixel", topPixel
+				assembledChannelFrame[leftPixel:rightPixel, bottomPixel:topPixel] = assembledChannelFrame[leftPixel:rightPixel, bottomPixel:topPixel] + ultracamutils.percentiles(windowImage, 20, 98)
 				#stackedFrame[xll:xll+xsize, yll:yll+ysize] = stackedFrame[xll:xll+xsize, yll:yll+ysize] + windowImage
 
 				for o in newObjectsinWindow:
@@ -363,7 +373,11 @@ if __name__ == "__main__":
 			yll = frameInfo.getWindow(j).yll 
 			xsize = frameInfo.getWindow(j).xsize 
 			ysize = frameInfo.getWindow(j).ysize 
-			fullImage[xll:xll+xsize, yll:yll+ysize] = fullImage[xll:xll+xsize, yll:yll+ysize] + ultracamutils.percentiles(windowImage, 50, 98)
+			leftPixel = xll-1
+			rightPixel = xll-1+xsize
+			bottomPixel = yll-1
+			topPixel = yll-1+ysize
+			fullImage[leftPixel:rightPixel, bottomPixel:topPixel] = fullImage[leftPixel:rightPixel, bottomPixel:topPixel] + ultracamutils.percentiles(windowImage, 50, 98)
 			
 		fullImage = numpy.fliplr(fullImage)
 		imgData = fullImage

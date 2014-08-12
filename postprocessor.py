@@ -104,6 +104,9 @@ if (__name__ == "__main__"):
 		for c in channels:
 			debug.write("Creating an XYLS file for the %s channel"%(channelDescriptions[c]))
 			objects = allObjects[c]
+			if (len(objects)==0):
+				debug.write("No bjects for this colour. Not writing a catalog...", level = 2)
+				continue
 			sortedObjects = sorted(objects, key= lambda p:p.meanFlux, reverse=True)
 			x_values, IDs, y_values, fluxes = [], [], [], []
 		
