@@ -61,7 +61,7 @@ runName = sys.argv[1]
 runFilename = utils.addPaths(config.ULTRACAMRAW, runName)
 
 startFrame = 1
-requestedNumFrames = 20
+requestedNumFrames = -1
 CCDside = 0
 keepTmpFiles = False
 frameInfo = classes.FrameObject()
