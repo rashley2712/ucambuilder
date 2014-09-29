@@ -151,7 +151,7 @@ if __name__ == "__main__":
 		ID = d[columns.names.index('ID')]
 		x = d[columns.names.index('X')]
 		y = d[columns.names.index('Y')]
-		flux = d[colum ns.names.index('FLUX')]
+		flux = d[columns.names.index('FLUX')]
 		print ID, x, y, flux
 	
 	"""
