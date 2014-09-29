@@ -132,11 +132,29 @@ if __name__ == "__main__":
 	print
 	
 	print "Test: Going from world to pixel"
-	world = (121.23, 16.2548)
+	world = (296.04, 40.29)
 	pixel = wcsSolutions['r'].getPixel(world)
 	print "Test world:", world
 	print "Test pixel:", pixel
 	
+	colour = 'r'
+	catalogFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_" + colour + ".xyls"
+	print "Now load the red input catalog:", catalogFilename
+	catalogFile = astropy.io.fits.open(catalogFilename)
+	headers = catalogFile[1].header
+	columns = catalogFile[1].columns
+	data = catalogFile[1].data
+	
+	objects = []
+	for d in data:
+		object = {}
+		ID = d[columns.names.index('ID')]
+		x = d[columns.names.index('X')]
+		y = d[columns.names.index('Y')]
+		flux = d[columns.names.index('FLUX')]
+		print ID, x, y, flux
+	
+	"""
 	gridSize = 1024
 	gridSpacing = 20
 	arrowScale = 2.0
@@ -171,16 +189,13 @@ if __name__ == "__main__":
 	print blueOffsetx
 	print blueOffsety
 
-	
-	
-	
-	X,Y = numpy.meshgrid( numpy.arange(0,gridSize,1), numpy.arange(0, gridSize, 1) )
+	matplotlib.pyplot.show()
+	"""
+
+	"""X,Y = numpy.meshgrid( numpy.arange(0,gridSize,1), numpy.arange(0, gridSize, 1) )
 	U = numpy.cos(X)
 	V = numpy.sin(Y)
 	
 	#QP = matplotlib.pyplot.quiver(X, Y, greenOffsetx, greenOffsety, scale = 1.5)
 	#QP = matplotlib.pyplot.quiver(X, Y, U, V, scale=2)
-	#matplotlib.pyplot.quiverkey(QP, 
-	matplotlib.pyplot.show()
-	
-	print X
+	#matplotlib.pyplot.quiverkey(QP, """
