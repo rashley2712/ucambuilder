@@ -77,7 +77,7 @@ if __name__ == "__main__":
 
 	objects = []
 
-	print "Loading JSON file with object data..."
+	print "Loading JSON file with object data...", jsonFilename
 	for i in allObjectsJSON:
 		ob = json.loads(i)
 		object = {}

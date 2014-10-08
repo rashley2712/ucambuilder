@@ -32,19 +32,19 @@ if __name__ == "__main__":
 				try:
 					red = float(values[1])
 					reds.append([time, red])
-				except ValueError:
+				except:
 					print "No red value for MJD:", values[0]
 	
 				try:
 					green = float(values[2])
 					greens.append([time, green])
-				except ValueError:
+				except:
 					print "No green value for MJD:", values[0]
 	
 				try:
 					blue = float(values[3])
 					blues.append([time, blue])
-				except ValueError:
+				except:
 					print "No blue value for MJD:", values[0]
 	
 				

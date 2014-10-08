@@ -134,7 +134,7 @@ for i in range(requestedNumFrames):
 			xsize = frameInfo.getWindow(j).xsize 
 			ysize = frameInfo.getWindow(j).ysize 
 			rotatedImage = numpy.flipud(frameImage)
-			normalisedImage = utils.percentiles(rotatedImage, 25, 99)
+			normalisedImage = utils.percentiles(rotatedImage, 10, 98)
 			fullFrame[xll:xll+xsize, yll:yll+ysize] = fullFrame[xll:xll+xsize, yll:yll+ysize] + normalisedImage
 	
 		fullFrame = numpy.fliplr(fullFrame)
@@ -168,7 +168,7 @@ for i in range(requestedNumFrames):
 
 	img = Image.merge("RGB", (rgbFrames[0],rgbFrames[1],rgbFrames[2]))			
 	
-	caption = str(frameCounter).zfill(5) + " : " + str(frameMJD) + " [rgb]"
+	caption = str(frameCounter+startFrame-1).zfill(5) + " : " + str(frameMJD) + " [rgb]"
 	
 	outputFilename = utils.addPaths(config.MOVIE_TMP_PATH,runName) + str(frameCounter).zfill(5) + "rgb"
 	utils.writePNG(img, outputFilename, caption)
@@ -178,7 +178,7 @@ print "Written %d png files to %s folder"%(frameCounter, config.MOVIE_TMP_PATH)
 
 pngPath = utils.addPaths(config.MOVIE_TMP_PATH, date)
 pngFiles = pngPath + "/*.png"
-subprocess.call(["mencoder", "mf://" + pngFiles, "-o", movieFilename, "-fps", "10", "-ovc", "lavc"])
+subprocess.call(["mencoder", "mf://" + pngFiles, "-o", movieFilename, "-fps", "5", "-ovc", "lavc"])
 
 subprocess.call(["rm", "-f", pngPath + "/*"])
 

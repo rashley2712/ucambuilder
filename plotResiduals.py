@@ -70,10 +70,18 @@ if __name__ == "__main__":
 	
 	rednp = numpy.array(reds)
 	redvalues = rednp[:, 1]
+	greennp = numpy.array(greens)
+	greenvalues = greennp[:, 1]
+	bluenp = numpy.array(blues)
+	bluevalues = bluenp[:, 1]
 	
 	print redvalues
 	print "Red mean:" , numpy.mean(redvalues)
 	print "Red stddev:" , numpy.std(redvalues)
+	print "Green mean:" , numpy.mean(greenvalues)
+	print "Green stddev:" , numpy.std(greenvalues)
+	print "Blue mean:" , numpy.mean(bluevalues)
+	print "Blue stddev:" , numpy.std(bluevalues)
 
 	inputFile = astropy.io.fits.open(arg.datafile2)
 
@@ -113,13 +121,28 @@ if __name__ == "__main__":
 		if (blue!=0):
 			alt_blues.append([time, blue]);
 	
+	# Discard the first and last reading
+	del alt_reds[0]
+	del alt_reds[-1]
+	del alt_greens[0]
+	del alt_greens[-1]	
+	del alt_blues[0]
+	del alt_blues[-1]	
 	rednp = numpy.array(alt_reds)
 	redvalues = rednp[:, 1]
+	greennp = numpy.array(alt_greens)
+	greenvalues = greennp[:, 1]
+	bluenp = numpy.array(alt_blues)
+	bluevalues = bluenp[:, 1]
 	
 	print redvalues
 	print "Alt Red mean:" , numpy.mean(redvalues)
 	print "Alt Red stddev:" , numpy.std(redvalues)
-		
+	print "Alt Green mean:" , numpy.mean(greenvalues)
+	print "Alt Green stddev:" , numpy.std(greenvalues)
+	print "Alt Blue mean:" , numpy.mean(bluevalues)
+	print "Alt Blue stddev:" , numpy.std(bluevalues)
+	
 	
 	MJDoffset = int(reds[0][0])
 	
@@ -143,7 +166,7 @@ if __name__ == "__main__":
 
 	matplotlib.pyplot.plot(x_values, y_values, 'r.', label = 'i')
 	matplotlib.pyplot.xlabel('MJD' + ' +' + str(MJDoffset))
-	matplotlib.pyplot.ylabel('Counts (automated pipeline) - Counts (traditional pipeline)')
+	matplotlib.pyplot.ylabel('Counts A - Counts T')
 
 	x_values = []
 	y_values = []
@@ -157,7 +180,9 @@ if __name__ == "__main__":
 		(closestTime, counts) = findClosestTime(alt_greens, mjd)
 		#print mjd, closestTime
 		y_values[index] = y_values[index] - counts
-
+	print "Res. Green mean:" , numpy.mean(y_values)
+	print "Res. Green stddev:" , numpy.std(y_values)
+	
 	matplotlib.pyplot.plot(x_values, y_values, 'g.', label = 'g')
 
 	x_values = []
@@ -172,7 +197,9 @@ if __name__ == "__main__":
 		(closestTime, counts) = findClosestTime(alt_blues, mjd)
 		#print mjd, closestTime
 		y_values[index] = y_values[index] - counts
-
+	print "Res. Blue mean:" , numpy.mean(y_values)
+	print "Res. Blue stddev:" , numpy.std(y_values)
+	
 		
 	matplotlib.pyplot.plot(x_values, y_values, 'b.', label = 'u') 
 
