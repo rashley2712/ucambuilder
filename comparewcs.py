@@ -3,10 +3,18 @@
 import astropy.io.fits
 import argparse
 import matplotlib.pyplot, numpy, math
+import matplotlib.image
 import Image, ImageDraw
 import ultracamutils
 import classes, wcsclasses
 import os, subprocess, sys, json
+
+def getArrayFromObjects(objects, propertyName):
+	values = []
+	for o in objects:
+		value = o[propertyName]
+		values.append(value)
+	return numpy.array(values)
 
 if __name__ == "__main__":
 	
@@ -132,11 +140,69 @@ if __name__ == "__main__":
 	print
 	
 	print "Test: Going from world to pixel"
-	world = (121.23, 16.2548)
+	world = (296.04, 40.29)
 	pixel = wcsSolutions['r'].getPixel(world)
 	print "Test world:", world
 	print "Test pixel:", pixel
 	
+	colour = 'b'
+	catalogFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_" + colour + ".xyls"
+	print "Now load the red input catalog:", catalogFilename
+	catalogFile = astropy.io.fits.open(catalogFilename)
+	headers = catalogFile[1].header
+	columns = catalogFile[1].columns
+	data = catalogFile[1].data
+	
+	print catalogFile.info()
+	objects = []
+	for d in data:
+		object = {}
+		ID = d[columns.names.index('ID')]
+		x = d[columns.names.index('X')]
+		y = d[columns.names.index('Y')]
+		flux = d[columns.names.index('FLUX')]
+		print ID, x, y, flux
+		object['ID'] = ID
+		object['x'] = x
+		object['y'] = y
+		object['flux'] = flux
+		objects.append(object)
+
+	figure = matplotlib.pyplot.figure(figsize=(12, 12))
+	
+	ymax = 1032
+	arrowScale = 10000000
+	for o in objects:
+		# First transform to world coordinates without using SIP
+		(x, y) = o['x'], o['y']
+		(world_x, world_y) = wcsSolutions['r'].getWorldCoord((x,y))
+		print x, y, ":", world_x, world_y, 
+		# Now revert back to pixel position with SIP polynomial
+		(new_x, new_y) = wcsSolutions['r'].getPixel((world_x, world_y))
+		x_arrow = new_x - x
+		y_arrow = new_y - y
+		print x_arrow, y_arrow
+		matplotlib.pyplot.plot([x, x + x_arrow * arrowScale], [ ymax - y, ymax - (y + y_arrow * arrowScale)], lw=1, color='black')
+	
+	
+	matplotlib.pyplot.gca().invert_yaxis()
+	
+	# Also load the image bitmap
+	pngFile = ultracamutils.addPaths(config.SITE_PATH, arg.runname) + '_' + colour + ".png"
+	print "Loading bitmap:", pngFile
+	img = matplotlib.image.imread(pngFile)
+	
+	imgplot = matplotlib.pyplot.imshow(img)
+	
+	matplotlib.pyplot.show()
+	
+	figure.savefig('test2.eps',dpi=100, format='eps')
+	
+	"""
+	Now compare the offsets from colour to colour
+	"""
+	
+	"""
 	gridSize = 1024
 	gridSpacing = 20
 	arrowScale = 2.0
@@ -171,16 +237,13 @@ if __name__ == "__main__":
 	print blueOffsetx
 	print blueOffsety
 
-	
-	
-	
-	X,Y = numpy.meshgrid( numpy.arange(0,gridSize,1), numpy.arange(0, gridSize, 1) )
+	matplotlib.pyplot.show()
+	"""
+
+	"""X,Y = numpy.meshgrid( numpy.arange(0,gridSize,1), numpy.arange(0, gridSize, 1) )
 	U = numpy.cos(X)
 	V = numpy.sin(Y)
 	
 	#QP = matplotlib.pyplot.quiver(X, Y, greenOffsetx, greenOffsety, scale = 1.5)
 	#QP = matplotlib.pyplot.quiver(X, Y, U, V, scale=2)
-	#matplotlib.pyplot.quiverkey(QP, 
-	matplotlib.pyplot.show()
-	
-	print X
+	#matplotlib.pyplot.quiverkey(QP, """

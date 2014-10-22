@@ -25,7 +25,7 @@ if __name__ == "__main__":
 	cowsFile = file(cowsFilename, 'w')
 	
 	cowsFile.write("#!/bin/bash\n")
-	cowsFile.write("#PBS -l nodes=1:ppn=1,pvmem=1024mb,walltime=24:00:00\n")
+	cowsFile.write("#PBS -l nodes=1:ppn=1,pvmem=2048mb,walltime=24:00:00\n")
 	cowsFile.write("#PBS -V\n\n")
 	cowsFile.write("setenv PBS_O_WORKDIR /storage/astro2/phrnaw/ucambuilder\n")
 	cowsFile.write("cd $PBS_O_WORKDIR\n\n")
