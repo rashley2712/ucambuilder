@@ -1,4 +1,6 @@
 import numpy
+from scipy.ndimage.filters import gaussian_filter
+
 
 class window:
 	""" This class defines a window for the ULTRASPEC camera
@@ -45,12 +47,18 @@ class sourceMap:
 	
 	def __init__(self, dimensions):
 		self.heatMap = numpy.zeros(dimensions)
+		self.psize = 1.0
+		self.fwhm = 4.0
 		print "Intialised a source map with dimensions:", dimensions
 		
 	def updateMap(self, sources):
 		for s in sources:
 			j, i = int(s[0]), int(s[1])
-			self.heatMap[i][j]+=1
+			self.heatMap[i][j]+=1 
 			
 	def getSourceMap(self):
 		return self.heatMap
+		
+	def getSmoothMap(self):
+		return gaussian_filter(self.heatMap, self.fwhm/self.psize/2.3548, mode='constant')
+		

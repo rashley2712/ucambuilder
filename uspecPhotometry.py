@@ -18,7 +18,6 @@ import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
 from astropy.stats import median_absolute_deviation as mad
-from   scipy.ndimage.filters import gaussian_filter
 
 
 def determineFullFrameSize(windows):
@@ -132,14 +131,24 @@ if __name__ == "__main__":
 	fullFrameysize = ymax - ymin
 	sourceMap = ultraspecClasses.sourceMap((fullFrameysize, fullFramexsize))
 			
-
+	print "First pass.... building a map of sources in order to define the apertures..."
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()
 		trueFrameNumber = startFrame + frameIndex - 1
+		completionPercent = (float(frameIndex) / float(frameRange) * 100.)
+		timePassed = ultracamutils.timedeltaTotalSeconds(currentTime - startTime)
+		totalTime = timePassed * 100. / completionPercent
+		etaTime = startTime + datetime.timedelta(seconds = totalTime)
+		timeLeft = etaTime - currentTime
+		(hours, mins, secs) = ultracamutils.timedeltaHoursMinsSeconds(timeLeft)
+		timeLeftString = str(hours).zfill(2) + ":" + str(mins).zfill(2) + ":" + str(secs).zfill(2)
+		
 		ccdFrame = rdat()
 		
-		print currentTime, "Frame: [%d/%d]"%(trueFrameNumber, frameRange)
+		statusString = "\r%s Frame: [%d/%d]"%(timeLeftString, trueFrameNumber, frameRange)
+		sys.stdout.write(statusString)
+		sys.stdout.flush()
 		
 		ccdFrame.rback()
 		window = ccdFrame[0]
@@ -151,7 +160,6 @@ if __name__ == "__main__":
 			bkg_sigma = 1.48 * mad(image)
 			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
 			allWindows[windowIndex].setSources(sources)	
-		
 			
 		# Combine the sources in all of the windows
 		allSources = []
@@ -159,13 +167,10 @@ if __name__ == "__main__":
 			xll = w.xll/w.xbin - xmin
 			yll = w.yll/w.ybin - ymin
 			sources = w.getSources()
-			for s in sources:
-				(x, y) = s['xcentroid'], s['ycentroid']
-				xAbs = x + xll
-				yAbs = y + yll
-				#print xll, yll, "(%d, %d) -> (%d, %d)"%(x, y, xAbs, yAbs)
-				allSources.append((xAbs, yAbs))
-		
+			positions = zip(sources['xcentroid'], sources['ycentroid'])
+			new_positions = [(x + xll, y + yll) for (x, y) in positions]
+			allSources+=new_positions
+			
 		sourceMap.updateMap(allSources)
 			
 			
@@ -200,20 +205,34 @@ if __name__ == "__main__":
 			
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
-
-	# Generate the source map
+	sys.stdout.write("\rProcessed %d frames      \n"%frameRange)
+	sys.stdout.flush()
+	
+	# Get the source map
+	smoothedSourceMap = sourceMap.getSmoothMap()
+	
+	# Now use this source map to generate a set of apertures
+	bkg_sigma = 1.48 * mad(smoothedSourceMap)
+	print "sourceMap median:", numpy.median(smoothedSourceMap)
+	print "sourceMap mean:", numpy.mean(smoothedSourceMap)
+	print "sourceMap max:", numpy.max(smoothedSourceMap)
+	threshold = frameRange/100.
+	print "threshold:", threshold
+	apertureSources = daofind(smoothedSourceMap, fwhm=4.0, threshold=threshold)   
+	print apertureSources
+	print apertureSources['sharpness']
+	# Draw the source map 
 	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
 	matplotlib.pyplot.title("Source map")
-	fwhm = 3
-	psize = 1
-	boostedImage = gaussian_filter(sourceMap.getSourceMap(),fwhm/psize/2.3548,mode='constant')
-	#boostedImage = ultracamutils.percentiles(boostedImage, 1, 99)
-	matplotlib.pyplot.imshow(boostedImage, cmap='hot')
+	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
+	for s in apertureSources:
+		x, y = s['xcentroid'], s['ycentroid']
+		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
 	matplotlib.pyplot.gca().invert_yaxis()			
 	matplotlib.pyplot.show(block=False)
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap.png"
 	matplotlib.pyplot.savefig(outputFilename)
-	
+
 
 	# Generate the stacked image for writing to disc
 	stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
