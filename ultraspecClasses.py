@@ -1,7 +1,13 @@
 import numpy
 from scipy.ndimage.filters import gaussian_filter
 
-
+class aperture:
+	""" This is an aperture instance 
+	"""
+	def __init__(self, position, radius):
+		self.position = position
+		self.radius = radius
+	
 class window:
 	""" This class defines a window for the ULTRASPEC camera
 	"""
@@ -49,11 +55,16 @@ class sourceMap:
 		self.heatMap = numpy.zeros(dimensions)
 		self.psize = 1.0
 		self.fwhm = 4.0
+		self.xsize = dimensions[1]
+		self.ysize = dimensions[0]
+		self.border = 10
 		print "Intialised a source map with dimensions:", dimensions
 		
 	def updateMap(self, sources):
 		for s in sources:
 			j, i = int(s[0]), int(s[1])
+			if (j<self.border) or (j>self.xsize-self.border): continue
+			if (i<self.border) or (i>self.ysize-self.border): continue
 			self.heatMap[i][j]+=1 
 			
 	def getSourceMap(self):

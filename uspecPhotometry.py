@@ -17,6 +17,7 @@ import Image,ImageDraw
 import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
+from photutils import aperture_photometry, CircularAperture, psf_photometry, GaussianPSF
 from astropy.stats import median_absolute_deviation as mad
 
 
@@ -153,9 +154,10 @@ if __name__ == "__main__":
 		ccdFrame.rback()
 		window = ccdFrame[0]
 		
+		
 		for windowIndex, w in enumerate(window):
 			image = w._data
-			image -= numpy.median(image)
+			#image -= numpy.median(image)
 			allWindows[windowIndex].addData(image)
 			bkg_sigma = 1.48 * mad(image)
 			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
@@ -188,7 +190,7 @@ if __name__ == "__main__":
 				fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
 					
 			
-			matplotlib.pyplot.imshow(fullFrame, cmap='gray')
+			matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
 			
 			for s in allSources:
 				(x, y) = s
@@ -219,8 +221,6 @@ if __name__ == "__main__":
 	threshold = frameRange/100.
 	print "threshold:", threshold
 	apertureSources = daofind(smoothedSourceMap, fwhm=4.0, threshold=threshold)   
-	print apertureSources
-	print apertureSources['sharpness']
 	# Draw the source map 
 	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
 	matplotlib.pyplot.title("Source map")
@@ -229,7 +229,7 @@ if __name__ == "__main__":
 		x, y = s['xcentroid'], s['ycentroid']
 		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
 	matplotlib.pyplot.gca().invert_yaxis()			
-	matplotlib.pyplot.show(block=False)
+	#matplotlib.pyplot.show(block=False)
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap.png"
 	matplotlib.pyplot.savefig(outputFilename)
 
@@ -246,9 +246,41 @@ if __name__ == "__main__":
 		ysize = w.ny
 		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
 	
-	image = matplotlib.pyplot.imshow(fullFrame, cmap='gray')
+	image = matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
 	matplotlib.pyplot.gca().invert_yaxis()			
-	matplotlib.pyplot.show(block=True)
+	#matplotlib.pyplot.show(block=True)
 	
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
 	matplotlib.pyplot.savefig(outputFilename)
+	
+	# Now perform the aperture photometry...
+	
+	positions = zip(apertureSources['xcentroid'], apertureSources['ycentroid'])   
+	apertures = CircularAperture(positions, r=15)
+	
+	fullImage = numpy.zeros((fullFrameysize, fullFramexsize))	
+	for w in allWindows:
+		windowImage = w.data
+		xll = w.xll/w.xbin - xmin
+		xsize = w.nx
+		yll = w.yll/w.ybin - ymin
+		ysize = w.ny
+		fullImage[yll:yll+ysize, xll:xll+xsize] = fullImage[yll:yll+ysize, xll:xll+xsize] + windowImage
+	
+	print fullImage	
+	phot_table = aperture_photometry(fullImage, apertures)
+	phot_table.sort('aperture_sum')
+	phot_table.reverse()
+	print phot_table
+	
+	# Get the 5th brightest object
+	testObject = phot_table[4]
+	print testObject
+	
+	flux = testObject['aperture_sum']
+	x = testObject['xcenter']
+	y = testObject['ycenter']
+	psf = GaussianPSF(15, flux = flux, x_0 = x, y_0 = y)
+	print psf
+	psf_photometry(fullImage, (x, y), psf, mask=None, mode='sequential', tune_coordinates=True)
+	print psf
