@@ -2,26 +2,89 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>currentDocument</key>
+	<string>ultraspecClasses.py</string>
 	<key>documents</key>
 	<array>
 		<dict>
 			<key>filename</key>
+			<string>ultraspecutils.py</string>
+		</dict>
+		<dict>
+			<key>filename</key>
 			<string>ultraspecClasses.py</string>
-			<key>selected</key>
-			<true/>
+			<key>lastUsed</key>
+			<date>2014-11-03T15:50:12Z</date>
+		</dict>
+		<dict>
+			<key>filename</key>
+			<string>uspecCreateSourceMap.py</string>
+			<key>lastUsed</key>
+			<date>2014-11-03T15:50:12Z</date>
 		</dict>
 		<dict>
 			<key>filename</key>
 			<string>uspecPhotometry.py</string>
+			<key>lastUsed</key>
+			<date>2014-11-03T15:42:08Z</date>
 		</dict>
 	</array>
 	<key>fileHierarchyDrawerWidth</key>
-	<integer>200</integer>
+	<integer>114</integer>
 	<key>metaData</key>
-	<dict/>
+	<dict>
+		<key>ultraspecClasses.py</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>24</integer>
+				<key>line</key>
+				<integer>44</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>25</integer>
+		</dict>
+		<key>uspecCreateSourceMap.py</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>30</integer>
+				<key>line</key>
+				<integer>267</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>221</integer>
+		</dict>
+		<key>uspecPhotometry.py</key>
+		<dict>
+			<key>caret</key>
+			<dict>
+				<key>column</key>
+				<integer>59</integer>
+				<key>line</key>
+				<integer>219</integer>
+			</dict>
+			<key>firstVisibleColumn</key>
+			<integer>0</integer>
+			<key>firstVisibleLine</key>
+			<integer>248</integer>
+		</dict>
+	</dict>
+	<key>openDocuments</key>
+	<array>
+		<string>ultraspecClasses.py</string>
+		<string>uspecCreateSourceMap.py</string>
+		<string>uspecPhotometry.py</string>
+	</array>
 	<key>showFileHierarchyDrawer</key>
 	<true/>
 	<key>windowFrame</key>
-	<string>{{587, 75}, {1081, 921}}</string>
+	<string>{{436, 149}, {1081, 921}}</string>
 </dict>
 </plist>

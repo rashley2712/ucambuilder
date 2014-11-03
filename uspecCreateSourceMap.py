@@ -6,7 +6,6 @@ import argparse
 import numpy, math
 import classes
 import ultraspecClasses
-import ultraspecutils
 #import rashley_utils as utils
 from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
@@ -21,6 +20,22 @@ from photutils import daofind
 from photutils import aperture_photometry, CircularAperture, psf_photometry, GaussianPSF
 import astropy.table
 from astropy.stats import median_absolute_deviation as mad
+
+
+
+def determineFullFrameSize(windows):
+	leftestPixel = 1057
+	rightestPixel = 0
+	topestPixel = 0 
+	bottomestPixel = 1040
+	for w in windows:
+		if w.xll/w.xbin < leftestPixel: leftestPixel = w.xll/w.xbin
+		if w.yll/w.ybin < bottomestPixel: bottomestPixel = w.yll/w.ybin
+		if (w.xll/w.xbin + w.nx) > rightestPixel: rightestPixel = w.xll/w.xbin + w.nx
+		if (w.yll/w.ybin + w.ny) > topestPixel: topestPixel = w.yll/w.ybin + w.ny
+			
+	return leftestPixel, bottomestPixel, rightestPixel, topestPixel
+		
 
 if __name__ == "__main__":
 	
@@ -53,14 +68,7 @@ if __name__ == "__main__":
 	(runDate, runNumber) = ultracamutils.separateRunNameAndDate(arg.runname)
 	
 	workingFolder = ultracamutils.addPaths(config.WORKINGDIR, runDate)
-	outputFolder = ultracamutils.addPaths(config.SITE_PATH, runDate)
 	ultracamutils.createFolder(workingFolder)
-	ultracamutils.createFolder(outputFolder)
-	
-	""" Load the apertures from an existing aperture file
-	"""
-	apertureFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_apertures.json"
-	apertures = ultraspecutils.loadApertures(apertureFilename)
 	
 	startFrame = arg.startframe
 	if startFrame<1:
@@ -94,7 +102,7 @@ if __name__ == "__main__":
 		if arg.stack:
 			matplotlib.pyplot.title("Stacked image")
 			
-	#fullFrame = numpy.zeros((1057, 1040))
+	fullFrame = numpy.zeros((1057, 1040))
 			
 	allWindows = []
 
@@ -113,18 +121,18 @@ if __name__ == "__main__":
 		window.setData(image)
 		
 		bkg_sigma = 1.48 * mad(image)
-		debug.write("bkg_sigma %d"%bkg_sigma, level = 3)   
+		print "bkg_sigma", bkg_sigma   
 		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
 		window.setSources(sources)	
 		
 		allWindows.append(window)
 		
-	(xmin, ymin, xmax, ymax) = ultraspecutils.determineFullFrameSize(allWindows)
+	(xmin, ymin, xmax, ymax) = determineFullFrameSize(allWindows)
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
 	sourceMap = ultraspecClasses.sourceMap((fullFrameysize, fullFramexsize))
 			
-	print "First pass.... building a map of sources in order to define the apertures..."
+	debug.write("Building a map of sources in order to define the apertures...", level = 2)
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()
@@ -143,11 +151,9 @@ if __name__ == "__main__":
 		sys.stdout.write(statusString)
 		sys.stdout.flush()
 		
-		#ccdFrame.rback()
-		window = ccdFrame[0]
+		windows = ccdFrame[0]
 		
-		
-		for windowIndex, w in enumerate(window):
+		for windowIndex, w in enumerate(windows):
 			image = w._data
 			#image -= numpy.median(image)
 			allWindows[windowIndex].addData(image)
@@ -245,44 +251,21 @@ if __name__ == "__main__":
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
 	matplotlib.pyplot.savefig(outputFilename)
 	
-	# Now perform the aperture photometry...
+	# Now write out the aperture data
 	
-	positions = zip(apertureSources['xcentroid'], apertureSources['ycentroid'])   
-	apertures = CircularAperture(positions, r=15)
-	
-	fullImage = numpy.zeros((fullFrameysize, fullFramexsize))	
-	for w in allWindows:
-		windowImage = w.data
-		xll = w.xll/w.xbin - xmin
-		xsize = w.nx
-		yll = w.yll/w.ybin - ymin
-		ysize = w.ny
-		fullImage[yll:yll+ysize, xll:xll+xsize] = fullImage[yll:yll+ysize, xll:xll+xsize] + windowImage
-	
-	# Try annulus subtraction of the background
-	from photutils import CircularAnnulus
-	apertures = CircularAperture(positions, r=3)
-	annulus_apertures = CircularAnnulus(positions, r_in=6., r_out=8.)
-	rawflux_table = aperture_photometry(fullImage, apertures)
-	bkgflux_table = aperture_photometry(fullImage, annulus_apertures)
-	phot_table = astropy.table.hstack([rawflux_table, bkgflux_table], table_names=['raw', 'bkg'])
-	print phot_table
-	
-	aperture_area = numpy.pi * 3 ** 2
-	annulus_area = numpy.pi * (8 ** 2 - 6 ** 2)
-	bkg_sum = phot_table['aperture_sum_bkg'] * aperture_area / annulus_area
-	final_sum = phot_table['aperture_sum_raw'] - bkg_sum
-	phot_table['residual_aperture_sum'] = final_sum
-	print phot_table['residual_aperture_sum']
-	
-	# Get the 5th brightest object
-	testObject = phot_table[4]
-	print testObject
-	
-	flux = testObject['aperture_sum']
-	x = testObject['xcenter']
-	y = testObject['ycenter']
-	psf = GaussianPSF(15, flux = flux, x_0 = x, y_0 = y)
-	print psf
-	psf_photometry(fullImage, (x, y), psf, mask=None, mode='sequential', tune_coordinates=True)
-	print psf
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sources.json"
+	outputFile = open(outputFilename, "w")
+	apertureList = []
+	for i, s in enumerate(apertureSources):
+		aperture = {}
+		aperture['id'] = i
+		aperture['x'] = s['xcentroid']
+		aperture['y'] = s['ycentroid']
+		aperture['sharpness'] = s['sharpness']
+		aperture['roundness1'] = s['roundness1']
+		aperture['roundness2'] = s['roundness2']
+		aperture['flux'] = s['flux']
+		apertureList.append(aperture)
+	json.dump(apertureList, outputFile)
+	outputFile.close()
+		
