@@ -20,6 +20,7 @@ from photutils import datasets
 from photutils import daofind
 from photutils import aperture_photometry, CircularAperture, psf_photometry, GaussianPSF
 import astropy.table
+import astropy.time
 from astropy.stats import median_absolute_deviation as mad
 
 if __name__ == "__main__":
@@ -27,7 +28,6 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Reads the Ultraspec [dd-mm-yyyy/runxxx.dat] files produces previews of the images')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib')
-	parser.add_argument('-s', '--stack', action='store_true', help='Stack the images in the preview window')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
 	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
 	parser.add_argument('--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
@@ -60,7 +60,16 @@ if __name__ == "__main__":
 	""" Load the apertures from an existing aperture file
 	"""
 	apertureFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_apertures.json"
+	debug.write("Loading apertures from file: %s"%apertureFilename, level = 2)
 	apertures = ultraspecutils.loadApertures(apertureFilename)
+	debug.write("Loaded %d apertures"%(len(apertures)), level = 2)
+	x = []
+	y = []
+	for a in apertures:
+		x.append(a.position[0])
+		y.append(a.position[1])
+
+	positions = zip(x, y)
 	
 	startFrame = arg.startframe
 	if startFrame<1:
@@ -91,8 +100,6 @@ if __name__ == "__main__":
 		matplotlib.pyplot.ion()
 		fig = matplotlib.pyplot.gcf()
 		matplotlib.pyplot.title("Frame image")
-		if arg.stack:
-			matplotlib.pyplot.title("Stacked image")
 			
 	#fullFrame = numpy.zeros((1057, 1040))
 			
@@ -107,24 +114,14 @@ if __name__ == "__main__":
 		window = ultraspecClasses.window()
 		window.setExtents(w.llx, w.lly, w.nx, w.ny)
 		window.setBinning(w.xbin, w.ybin)
-		
 		image = w._data
-		#image -= numpy.median(image)
 		window.setData(image)
-		
-		bkg_sigma = 1.48 * mad(image)
-		debug.write("bkg_sigma %d"%bkg_sigma, level = 3)   
-		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
-		window.setSources(sources)	
-		
 		allWindows.append(window)
 		
 	(xmin, ymin, xmax, ymax) = ultraspecutils.determineFullFrameSize(allWindows)
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
-	sourceMap = ultraspecClasses.sourceMap((fullFrameysize, fullFramexsize))
 			
-	print "First pass.... building a map of sources in order to define the apertures..."
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()
@@ -137,44 +134,26 @@ if __name__ == "__main__":
 		(hours, mins, secs) = ultracamutils.timedeltaHoursMinsSeconds(timeLeft)
 		timeLeftString = str(hours).zfill(2) + ":" + str(mins).zfill(2) + ":" + str(secs).zfill(2)
 		
+		""" Read the frame and the timestamp
+		"""
 		ccdFrame = rdat()
+		windows = ccdFrame[0]
+		MJD = windows.time.mjd
 		
-		statusString = "\r%s Frame: [%d/%d]"%(timeLeftString, trueFrameNumber, frameRange)
+		""" Display the status of the reduction so far
+		"""
+		statusString = "\r%s MJD: %5.7f Frame: [%d/%d]"%(timeLeftString, MJD, trueFrameNumber, frameRange)
 		sys.stdout.write(statusString)
 		sys.stdout.flush()
-		
-		#ccdFrame.rback()
-		window = ccdFrame[0]
-		
-		
-		for windowIndex, w in enumerate(window):
+			
+		for windowIndex, w in enumerate(windows):
 			image = w._data
-			#image -= numpy.median(image)
-			allWindows[windowIndex].addData(image)
-			bkg_sigma = 1.48 * mad(image)
-			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
-			allWindows[windowIndex].setSources(sources)	
-			
-		# Combine the sources in all of the windows
-		allSources = []
-		for index, w in enumerate(allWindows):
-			xll = w.xll/w.xbin - xmin
-			yll = w.yll/w.ybin - ymin
-			sources = w.getSources()
-			positions = zip(sources['xcentroid'], sources['ycentroid'])
-			new_positions = [(x + xll, y + yll) for (x, y) in positions]
-			allSources+=new_positions
-			
-		sourceMap.updateMap(allSources)
-			
+			allWindows[windowIndex].setData(image)
 			
 		if arg.preview: 
 			fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 			for w in allWindows:
-				if (arg.stack):
-					boostedImage = ultracamutils.percentiles(w.stackedData, 20, 99)
-				else:
-					boostedImage = ultracamutils.percentiles(w.data, 20, 99)
+				boostedImage = ultracamutils.percentiles(w.data, 20, 99)
 				xll = w.xll/w.xbin - xmin
 				xsize = w.nx
 				yll = w.yll/w.ybin - ymin
@@ -184,105 +163,48 @@ if __name__ == "__main__":
 			
 			matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
 			
-			for s in allSources:
-				(x, y) = s
-				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 15, color='green', fill=False, linewidth=2.0))
+			for a in apertures:
+				(x, y) = a.position
+				radius = a.radius
+				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), radius, color='green', fill=False, linewidth=2.0))
 			
 			
 			matplotlib.pyplot.title("Frame image [%d/%d]"%(trueFrameNumber, frameRange))
-			if arg.stack:
-				matplotlib.pyplot.title("Stacked image [%d/%d]"%(trueFrameNumber, frameRange))
 			matplotlib.pyplot.gca().invert_yaxis()
 			matplotlib.pyplot.draw()
 			matplotlib.pyplot.show()
 			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
+		
+		""" Now perform the photometry.
+		"""
+		fullDataFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
+		for w in allWindows:
+			data = ultracamutils.percentiles(w.data, 20, 99)
+			xll = w.xll/w.xbin - xmin
+			xsize = w.nx
+			yll = w.yll/w.ybin - ymin
+			ysize = w.ny
+			fullDataFrame[yll:yll+ysize, xll:xll+xsize] = fullDataFrame[yll:yll+ysize, xll:xll+xsize] + data
+		
+		# Try annulus subtraction of the background
+		from photutils import CircularAnnulus
+		photutilsApertures = CircularAperture(positions, r=3)
+		annulusApertures = CircularAnnulus(positions, r_in=6., r_out=8.)
+		rawflux_table = aperture_photometry(fullDataFrame, photutilsApertures)
+		bkgflux_table = aperture_photometry(fullDataFrame, annulusApertures)
+		phot_table = astropy.table.hstack([rawflux_table, bkgflux_table], table_names=['raw', 'bkg'])
+		print phot_table
+		
+		
 			
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
-	sys.stdout.write("\rProcessed %d frames      \n"%frameRange)
+			
+		""" End of the main loop 
+		"""
+	sys.stdout.write("\rProcessed %d frames                                \n"%frameRange)
 	sys.stdout.flush()
-	
-	# Get the source map
-	smoothedSourceMap = sourceMap.getSmoothMap()
-	
-	# Now use this source map to generate a set of apertures
-	bkg_sigma = 1.48 * mad(smoothedSourceMap)
-	print "sourceMap median:", numpy.median(smoothedSourceMap)
-	print "sourceMap mean:", numpy.mean(smoothedSourceMap)
-	print "sourceMap max:", numpy.max(smoothedSourceMap)
-	threshold = frameRange/100.
-	print "threshold:", threshold
-	apertureSources = daofind(smoothedSourceMap, fwhm=4.0, threshold=threshold)   
-	# Draw the source map 
-	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Source map")
-	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
-	for s in apertureSources:
-		x, y = s['xcentroid'], s['ycentroid']
-		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
-	matplotlib.pyplot.gca().invert_yaxis()			
-	#matplotlib.pyplot.show(block=False)
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap.png"
-	matplotlib.pyplot.savefig(outputFilename)
-
-
-	# Generate the stacked image for writing to disc
-	stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Stacked image")
-	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
-	for w in allWindows:
-		boostedImage = ultracamutils.percentiles(w.stackedData, 40, 99)
-		xll = w.xll/w.xbin - xmin
-		xsize = w.nx
-		yll = w.yll/w.ybin - ymin
-		ysize = w.ny
-		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
-	
-	image = matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
-	matplotlib.pyplot.gca().invert_yaxis()			
-	#matplotlib.pyplot.show(block=True)
-	
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
-	matplotlib.pyplot.savefig(outputFilename)
 	
 	# Now perform the aperture photometry...
 	
-	positions = zip(apertureSources['xcentroid'], apertureSources['ycentroid'])   
-	apertures = CircularAperture(positions, r=15)
 	
-	fullImage = numpy.zeros((fullFrameysize, fullFramexsize))	
-	for w in allWindows:
-		windowImage = w.data
-		xll = w.xll/w.xbin - xmin
-		xsize = w.nx
-		yll = w.yll/w.ybin - ymin
-		ysize = w.ny
-		fullImage[yll:yll+ysize, xll:xll+xsize] = fullImage[yll:yll+ysize, xll:xll+xsize] + windowImage
-	
-	# Try annulus subtraction of the background
-	from photutils import CircularAnnulus
-	apertures = CircularAperture(positions, r=3)
-	annulus_apertures = CircularAnnulus(positions, r_in=6., r_out=8.)
-	rawflux_table = aperture_photometry(fullImage, apertures)
-	bkgflux_table = aperture_photometry(fullImage, annulus_apertures)
-	phot_table = astropy.table.hstack([rawflux_table, bkgflux_table], table_names=['raw', 'bkg'])
-	print phot_table
-	
-	aperture_area = numpy.pi * 3 ** 2
-	annulus_area = numpy.pi * (8 ** 2 - 6 ** 2)
-	bkg_sum = phot_table['aperture_sum_bkg'] * aperture_area / annulus_area
-	final_sum = phot_table['aperture_sum_raw'] - bkg_sum
-	phot_table['residual_aperture_sum'] = final_sum
-	print phot_table['residual_aperture_sum']
-	
-	# Get the 5th brightest object
-	testObject = phot_table[4]
-	print testObject
-	
-	flux = testObject['aperture_sum']
-	x = testObject['xcenter']
-	y = testObject['ycenter']
-	psf = GaussianPSF(15, flux = flux, x_0 = x, y_0 = y)
-	print psf
-	psf_photometry(fullImage, (x, y), psf, mask=None, mode='sequential', tune_coordinates=True)
-	print psf

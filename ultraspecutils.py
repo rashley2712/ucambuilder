@@ -1,9 +1,20 @@
 import json
+import ultraspecClasses
 
 def loadApertures(jsonFilename):
-	print "Loading apertures from:", jsonFilename
-	
-	
+	jsonFile = open(jsonFilename, 'r')
+	wholeFileString = jsonFile.read()
+	parsedApertures = json.loads(wholeFileString)
+	allApertures = []
+	for apertureObject in parsedApertures:
+		position = (apertureObject['x'], apertureObject['y'])
+		radius = 10
+		apertureID = apertureObject['id']
+		aperture = ultraspecClasses.aperture(apertureID, position, radius)
+		allApertures.append(aperture)
+		
+	return allApertures
+		
 def determineFullFrameSize(windows):
 	leftestPixel = 1057
 	rightestPixel = 0

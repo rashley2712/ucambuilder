@@ -4,9 +4,17 @@ from scipy.ndimage.filters import gaussian_filter
 class aperture:
 	""" This is an aperture instance 
 	"""
-	def __init__(self, position, radius):
+	def __init__(self, id, position, radius):
 		self.position = position
 		self.radius = radius
+		self.isAnnular = False
+		self.id = id
+		
+	def pixelArea(self):
+		return numpy.pi * self.radius * self.radius
+	
+	def fluxPerPixel(self, flux):
+		return flux / self.pixelArea()	
 	
 class window:
 	""" This class defines a window for the ULTRASPEC camera
@@ -19,7 +27,7 @@ class window:
 		self.nx = 0
 		self.ny = 0
 		self.data = None
-		self.stackedData = None
+		self.stackedData = []
 		self.sources = None
 		
 	def setExtents(self, xll, yll, nx, ny):
@@ -34,7 +42,7 @@ class window:
 		
 	def setData(self, data):
 		self.data = data
-		if self.stackedData == None:
+		if len(self.stackedData) == 0:
 			self.stackedData = data
 
 	def addData(self, data):

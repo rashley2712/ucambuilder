@@ -253,7 +253,7 @@ if __name__ == "__main__":
 	
 	# Now write out the aperture data
 	
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sources.json"
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_apertures.json"
 	outputFile = open(outputFilename, "w")
 	apertureList = []
 	for i, s in enumerate(apertureSources):
