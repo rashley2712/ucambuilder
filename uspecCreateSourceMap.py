@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-
+import sys
+sys.path.remove('/home/astro/phsgan/Python64/lib/python/site-packages/astropy-0.3.2-py2.6-linux-x86_64.egg')
 import ultracamutils
 import matplotlib.pyplot
 import argparse
@@ -9,7 +10,6 @@ import ultraspecClasses
 #import rashley_utils as utils
 from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
-import sys
 import ultracam_shift
 import time, datetime
 import json
