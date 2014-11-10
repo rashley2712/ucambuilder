@@ -43,6 +43,7 @@ if __name__ == "__main__":
 	debug.toggleTimeLog()
 	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
 	
+	
 	runFilename = ultracamutils.addPaths(config.ULTRASPECRAW, arg.runname)
 
 	debug.write("Opening the Ultraspec raw file at: " + runFilename, level = 3)

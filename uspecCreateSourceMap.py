@@ -13,12 +13,12 @@ from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import ultracam_shift
 import time, datetime
 import json
-import Image,ImageDraw
+import PIL
 import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
 from photutils import aperture_photometry, CircularAperture, psf_photometry, GaussianPSF
-import astropy.table
+import astropy.table, astropy.io
 from astropy.stats import median_absolute_deviation as mad
 
 
@@ -48,6 +48,7 @@ if __name__ == "__main__":
 	parser.add_argument('--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run')
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
+	parser.add_argument('--xyls', action='store_true', help='Write an XYLS (FITS) file output catalog that can be used as input to Astronomy.net')
 	
 	arg = parser.parse_args()
 
@@ -57,6 +58,9 @@ if __name__ == "__main__":
 	debug.toggleTimeLog()
 	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
 	
+	runInfo = ultraspecClasses.runInfo(arg.runname)
+	runInfo.loadFromJSON(config.RUNINFO)
+		
 	runFilename = ultracamutils.addPaths(config.ULTRASPECRAW, arg.runname)
 
 	debug.write("Opening the Ultraspec raw file at: " + runFilename, level = 3)
@@ -219,6 +223,7 @@ if __name__ == "__main__":
 	threshold = frameRange/100.
 	print "threshold:", threshold
 	apertureSources = daofind(smoothedSourceMap, fwhm=4.0, threshold=threshold)   
+	
 	# Draw the source map 
 	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
 	matplotlib.pyplot.title("Source map")
@@ -231,7 +236,51 @@ if __name__ == "__main__":
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap.png"
 	matplotlib.pyplot.savefig(outputFilename)
 
+	# Draw the source map with no apertures
+	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
+	matplotlib.pyplot.title("Source map")
+	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap_clean.png"
+	matplotlib.pyplot.savefig(outputFilename)
 
+
+	# Write the XYLS FITS file
+	if (arg.xyls):
+		IDs = []
+		x_values = []
+		y_values = []
+		fluxes = []
+		sortedObjects = sorted(apertureSources, key= lambda p:p['flux'], reverse=True)
+		
+		for num, s in enumerate(sortedObjects):
+			IDs.append(num)
+			x_values.append(s['xcentroid'])
+			y_values.append(s['ycentroid'])
+			fluxes.append(s['flux'])
+			
+
+		FITSFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sources.xyls"
+		debug.write("Writing FITS file: " + FITSFilename, level=2)
+		col1 = astropy.io.fits.Column(name='ID', format='I', array=IDs)
+		col2 = astropy.io.fits.Column(name='X', format='E', array=x_values)
+		col3 = astropy.io.fits.Column(name='Y', format='E', array=y_values)
+		col4 = astropy.io.fits.Column(name='FLUX', format='E', array=fluxes)
+		cols = astropy.io.fits.ColDefs([col1, col2, col3, col4])	
+		tbhdu =astropy.io.fits.new_table(cols)
+		
+		prihdr = astropy.io.fits.Header()
+		prihdr['TARGET'] = runInfo.target
+		prihdr['RA'] = runInfo.ra
+		prihdr['DEC'] = runInfo.dec
+		prihdr['COMMENT'] = "This file created by uspecCreateSourceMap.py from the Ultracam pipeline."
+		prihdr['RUNIDENT'] = arg.runname
+		prihdr['WIDTH'] = fullFramexsize
+		prihdr['HEIGHT'] = fullFrameysize
+		
+		prihdu = astropy.io.fits.PrimaryHDU(header=prihdr)
+		thdulist = astropy.io.fits.HDUList([prihdu, tbhdu])
+		thdulist.writeto(FITSFilename, clobber=True)
+	
 	# Generate the stacked image for writing to disc
 	stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
 	matplotlib.pyplot.title("Stacked image")

@@ -1,5 +1,6 @@
-import numpy
+import numpy, json
 from scipy.ndimage.filters import gaussian_filter
+import ultracamutils
 
 class aperture:
 	""" This is an aperture instance 
@@ -81,3 +82,31 @@ class sourceMap:
 	def getSmoothMap(self):
 		return gaussian_filter(self.heatMap, self.fwhm/self.psize/2.3548, mode='constant')
 		
+class runInfo:
+	""" This class is used to store the meta-data for the run
+	"""
+	def __init__(self, runPath):
+		self.runPath = runPath
+		self.runDate, self.runID = ultracamutils.separateRunNameAndDate(runPath)
+		
+	def loadFromJSON(self, JSONFilename):
+		JSONfile = open(JSONFilename, "r")
+		allObjectsJSON = json.load(JSONfile)
+		run = {}
+		runNumberStr = self.runID[3:]
+		runNumber = int(runNumberStr)
+	
+		for object in allObjectsJSON:
+			date = object['night']
+			num = object['num']
+			if ((date == self.runDate) & (runNumber == num)):
+				self.comment = object["comment"]
+				self.ra = object['ra']
+				self.dec = object['dec']
+				self.objectID = object['id']
+				self.target = object['target']
+				self.num = object['num']
+				self.expose = object['expose']
+				print object
+			
+
