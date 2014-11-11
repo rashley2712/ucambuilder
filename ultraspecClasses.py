@@ -8,7 +8,9 @@ class aperture:
 	def __init__(self, id, position, radius):
 		self.position = position
 		self.radius = radius
-		self.isAnnular = False
+		self.hasSky = False
+		self.skyInnerRadius = 0
+		self.skyOuterRadius = 0
 		self.id = id
 		
 	def pixelArea(self):
@@ -16,7 +18,15 @@ class aperture:
 	
 	def fluxPerPixel(self, flux):
 		return flux / self.pixelArea()	
-	
+		
+	def setSkyAperture(self, skyInnerRadius, skyOuterRadius):
+		self.hasSky = True
+		self.skyInnerRadius = skyInnerRadius
+		self.skyOuterRadius = skyOuterRadius
+		
+	def setRadius(self, radius):
+		self.radius = radius
+		
 class window:
 	""" This class defines a window for the ULTRASPEC camera
 	"""

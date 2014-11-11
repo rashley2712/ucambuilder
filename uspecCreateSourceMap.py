@@ -13,7 +13,7 @@ from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import ultracam_shift
 import time, datetime
 import json
-import PIL
+import Image
 import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
@@ -286,19 +286,79 @@ if __name__ == "__main__":
 	matplotlib.pyplot.title("Stacked image")
 	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	for w in allWindows:
-		boostedImage = ultracamutils.percentiles(w.stackedData, 40, 99)
+		boostedImage = ultracamutils.percentiles(w.stackedData, 40, 99.8)
 		xll = w.xll/w.xbin - xmin
 		xsize = w.nx
 		yll = w.yll/w.ybin - ymin
 		ysize = w.ny
 		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
 	
-	image = matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
-	matplotlib.pyplot.gca().invert_yaxis()			
+	#image = matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
+	#matplotlib.pyplot.gca().invert_yaxis()			
 	#matplotlib.pyplot.show(block=True)
 	
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
-	matplotlib.pyplot.savefig(outputFilename)
+	#matplotlib.pyplot.savefig(outputFilename)
+	
+	# Do the same thing, but use the PIL library
+	imgData = numpy.rot90(fullFrame, 3)
+	imgSize = numpy.shape(imgData)
+	imgLength = imgSize[0] * imgSize[1]
+	testData = numpy.reshape(imgData, imgLength, order="F")
+	img = Image.new("L", imgSize)
+	palette = []
+	for i in range(256):
+		palette.extend((i, i, i)) # grey scale
+		img.putpalette(palette)
+		
+	img.putdata(testData)
+	debug.write("Writing PNG file: " + outputFilename, level = 2) 
+	img.save(outputFilename, "PNG", clobber=True)
+	
+	palette = []
+	for i in range(256):
+		palette.extend((255-i, 255-i, 255-i)) # inverse grey scale
+		img.putpalette(palette)
+	
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_inverted.png"
+	debug.write("Writing PNG file: " + outputFilename, level = 2) 
+	img.save(outputFilename, "PNG", clobber=True)
+	
+	# Write out the stacked image as a non-normalised FITS image
+	FITSFilename =  ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_stacked.fits"
+	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
+	for w in allWindows:
+		imageData = w.stackedData
+		xll = w.xll/w.xbin - xmin
+		xsize = w.nx
+		yll = w.yll/w.ybin - ymin
+		ysize = w.ny
+		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + imageData
+
+	ra = runInfo.ra * 15.  # Convert RA to degrees
+	dec = runInfo.dec
+	fieldScaleX = -8.3E-05
+	fieldScaleY = 8.3E-05
+	
+	prihdr = astropy.io.fits.Header()
+	prihdr['COMMENT'] = "This file created by the Ultracam pipeline."
+	prihdr['TARGET'] = runInfo.target
+	prihdr['COMMENT'] = runInfo.comment
+	prihdr['EQUINOX'] = 2000
+	prihdr['RADECSYS'] = "FK5"
+	prihdr['CTYPE1'] = "RA---TAN"
+	prihdr['CTYPE2'] = "DEC--TAN"
+	prihdr['CRPIX1'] = fullFramexsize/2
+	prihdr['CRPIX2'] = fullFrameysize/2
+	prihdr['CRVAL1'] = ra
+	prihdr['CRVAL2'] = dec
+	prihdr['CDELT1'] = fieldScaleX
+	prihdr['CDELT2'] = fieldScaleY
+	
+	hdu = astropy.io.fits.PrimaryHDU(fullFrame, header=prihdr)
+	
+	hdulist = astropy.io.fits.HDUList([hdu])
+	hdulist.writeto(FITSFilename, clobber=True)
 	
 	# Now write out the aperture data
 	

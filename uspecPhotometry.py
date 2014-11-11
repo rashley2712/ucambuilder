@@ -34,6 +34,7 @@ if __name__ == "__main__":
 	parser.add_argument('--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run')
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
+	parser.add_argument('-o', default = 0, type=int, help = "Only plot photometry for the top [o] objects.")
 	
 	arg = parser.parse_args()
 
@@ -65,6 +66,11 @@ if __name__ == "__main__":
 	debug.write("Loading apertures from file: %s"%apertureFilename, level = 2)
 	apertures = ultraspecutils.loadApertures(apertureFilename)
 	debug.write("Loaded %d apertures"%(len(apertures)), level = 2)
+	# Set a radius and sky aperture for all of the apertures
+	for a in apertures:
+		a.setRadius(5)
+		a.setSkyAperture(8, 12)
+		
 	x = []
 	y = []
 	for a in apertures:
@@ -100,7 +106,8 @@ if __name__ == "__main__":
 	if arg.preview:
 		matplotlib.pyplot.figure(figsize=(8, 8))
 		matplotlib.pyplot.ion()
-		fig = matplotlib.pyplot.gcf()
+		imageFigure = matplotlib.pyplot.gcf()
+		matplotlib.pyplot.figure(1)
 		matplotlib.pyplot.title("Frame image")
 			
 	#fullFrame = numpy.zeros((1057, 1040))
@@ -123,6 +130,8 @@ if __name__ == "__main__":
 	(xmin, ymin, xmax, ymax) = ultraspecutils.determineFullFrameSize(allWindows)
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
+	
+	allPhotometry = []
 			
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
@@ -167,10 +176,12 @@ if __name__ == "__main__":
 			
 			for a in apertures:
 				(x, y) = a.position
-				radius = a.radius
-				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), radius, color='green', fill=False, linewidth=2.0))
+				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), a.radius, color='green', fill=False, linewidth=1.0))
+				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), a.skyInnerRadius, color='blue', fill=False, linewidth=1.0))
+				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), a.skyOuterRadius, color='blue', fill=False, linewidth=1.0))
 			
 			
+			matplotlib.pyplot.figure(1)
 			matplotlib.pyplot.title("Frame image [%d/%d]"%(trueFrameNumber, frameRange))
 			matplotlib.pyplot.gca().invert_yaxis()
 			matplotlib.pyplot.draw()
@@ -181,7 +192,8 @@ if __name__ == "__main__":
 		"""
 		fullDataFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 		for w in allWindows:
-			data = ultracamutils.percentiles(w.data, 20, 99)
+			#data = ultracamutils.percentiles(w.data, 20, 99)
+			data = w.data
 			xll = w.xll/w.xbin - xmin
 			xsize = w.nx
 			yll = w.yll/w.ybin - ymin
@@ -190,14 +202,28 @@ if __name__ == "__main__":
 		
 		# Try annulus subtraction of the background
 		from photutils import CircularAnnulus
-		photutilsApertures = CircularAperture(positions, r=3)
-		annulusApertures = CircularAnnulus(positions, r_in=6., r_out=8.)
+		radius = apertures[0].radius
+		skyInner = apertures[0].skyInnerRadius
+		skyOuter = apertures[0].skyOuterRadius
+		photutilsApertures = CircularAperture(positions, r=radius)
+		annulusApertures = CircularAnnulus(positions, r_in= skyInner, r_out=skyOuter)
 		rawflux_table = aperture_photometry(fullDataFrame, photutilsApertures)
 		bkgflux_table = aperture_photometry(fullDataFrame, annulusApertures)
 		phot_table = astropy.table.hstack([rawflux_table, bkgflux_table], table_names=['raw', 'bkg'])
-		print phot_table
+		aperture_area = numpy.pi * radius ** 2
+		annulus_area = numpy.pi * (skyOuter ** 2 - skyInner ** 2)
+		bkg_sum = phot_table['aperture_sum_bkg'] * aperture_area / annulus_area
+		final_sum = phot_table['aperture_sum_raw'] - bkg_sum
+		phot_table['residual_aperture_sum'] = final_sum
+		#print phot_table['residual_aperture_sum']   
 		
-		
+		framePhotometry = {}
+		framePhotometry['MJD'] = MJD
+		results = phot_table['residual_aperture_sum']
+		for index, r in enumerate(results):
+			framePhotometry[index] = r
+			
+		allPhotometry.append(framePhotometry)
 			
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
@@ -207,6 +233,26 @@ if __name__ == "__main__":
 	sys.stdout.write("\rProcessed %d frames                                \n"%frameRange)
 	sys.stdout.flush()
 	
-	# Now perform the aperture photometry...
+	matplotlib.pyplot.figure(figsize=(12, 12))
+	xValues = []
+	for p in allPhotometry:
+		xValues.append(p['MJD'])
+		
+	MJDoffset = int(min(xValues))
+	print "MJD offset:",MJDoffset
+	
+	
+	xValues = [x - MJDoffset for x in xValues]
+	
+	
+	totalObjects = len(apertures)
+	for index in range(totalObjects):
+		yValues = []
+		for p in allPhotometry:
+			yValues.append(p[index])
+		matplotlib.pyplot.plot(xValues, yValues, '.', label = 'i')
+		
+	matplotlib.pyplot.xlabel('MJD' + ' +' + str(MJDoffset))
+	matplotlib.pyplot.show(block=True)
 	
 	
