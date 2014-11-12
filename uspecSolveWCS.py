@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import sys, os
-sys.path.remove('/home/astro/phsgan/Python64/lib/python/site-packages/astropy-0.3.2-py2.6-linux-x86_64.egg')
+try: 
+	sys.path.remove('/home/astro/phsgan/Python64/lib/python/site-packages/astropy-0.3.2-py2.6-linux-x86_64.egg')
+except (ValueError):
+	print "No need to fix sys.path"
 import ultracamutils
 import matplotlib.pyplot
 import argparse, subprocess
@@ -55,18 +58,26 @@ if __name__ == "__main__":
 	
 	workingFolder = ultracamutils.addPaths(config.WORKINGDIR, runDate)
 	
-	stackedImageFilename = workingFolder + '/' + runNumber + ".png"
+	stackedImageFilename = workingFolder + '/' + runNumber + "_stacked.fits"
 	if os.path.isfile(stackedImageFilename):
 		print "Found - ", stackedImageFilename 
 	else: 
 		print "No stacked image found at:", stackedImageFilename
 		
 	solutionOutputFile = workingFolder + '/' + runNumber + "_wcs_solution.fits"
+	FITSSolutionOutputFile = workingFolder + '/' + runNumber + "_wcs_solved_image.fits"
 	# Run astrometryClient
 	astrometryCommand = ['astrometryClient.py']
 	astrometryCommand.append("-kpadlqljoevlogqik")
 	astrometryCommand.append("-u" + stackedImageFilename)
 	astrometryCommand.append("--wcs=" + solutionOutputFile)
+	astrometryCommand.append("--wcsfits=" + FITSSolutionOutputFile)
 	astrometryCommand.append("-w")
+	astrometryCommand.append("--ra=" + str(runInfo.ra*15))
+	astrometryCommand.append("--dec=" + str(runInfo.dec))
+	astrometryCommand.append("--radius=1")
+	debug.write(astrometryCommand, level =2)
 	
 	subprocess.call(astrometryCommand)
+	
+	
