@@ -121,11 +121,13 @@ if __name__ == "__main__":
 	
 	matplotlib.pyplot.plot(x_values, y_values, 'k.')
 	matplotlib.pyplot.gca().invert_yaxis()
-	matplotlib.pyplot.ylabel('(u-g)')
-	matplotlib.pyplot.xlabel('(g-i)')
+	plot = matplotlib.pyplot.gcf().add_subplot(111)
+	plot.tick_params(axis='both', which='major', labelsize=14)
+	matplotlib.pyplot.ylabel('(u-g)', size = 18)
+	matplotlib.pyplot.xlabel('(g-i)', size = 18)
 	
 
 	matplotlib.pyplot.show()
 	
-	figure1.savefig('test1.eps',dpi=100, format='eps')
+	figure1.savefig('colour-colour.eps',dpi=100, format='eps')
 	
