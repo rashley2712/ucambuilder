@@ -88,13 +88,13 @@ if __name__ == "__main__":
 		objects.append(object)
 		print object['id']
 		
-	
 	""" Filter out only those objects with colours in all three channels
 	"""
 	filteredObjects = filter3colours(objects)
 	
 	""" Calculate the mean fluxes in each channel
 	"""
+	gmagMean = 0
 	for o in filteredObjects:
 		meanFlux = {}
 		for c in channels:
@@ -104,10 +104,20 @@ if __name__ == "__main__":
 		print o['id'], meanFlux
 		uminusg = -2.5 * math.log10(meanFlux['b']/meanFlux['g'])
 		gminusr = -2.5 * math.log10(meanFlux['g']/meanFlux['r'])
+		gmag = -2.5 * math.log10(meanFlux['g'])
 		
 		print uminusg, gminusr
 		o['ug'] = uminusg
 		o['gr'] = gminusr
+		o['gmag'] = gmag
+		gmagMean+=gmag
+	
+	
+	# Remove the 'g' offset
+	gmagMean = gmagMean/len(filteredObjects)
+	for o in filteredObjects:
+		o['gmag'] = o['gmag'] - gmagMean
+		
 	
 	figure1 = matplotlib.pyplot.figure(figsize=(12, 12))
 	
@@ -130,4 +140,29 @@ if __name__ == "__main__":
 	matplotlib.pyplot.show()
 	
 	figure1.savefig('colour-colour.eps',dpi=100, format='eps')
+	
+	# Now try a colour-magnitude plot
+	for o in filteredObjects:
+		meanFlux = o['meanFlux']
+		print meanFlux
+		
+	figure2 = matplotlib.pyplot.figure(figsize=(12, 12))
+	
+	x_values = []
+	y_values = []
+	for o in filteredObjects:
+		x_values.append(o['gr'])
+		y_values.append(o['gmag'])	
+	
+	print "Number of objects plotted:", len(x_values)
+	matplotlib.pyplot.plot(x_values, y_values, 'k.')
+	matplotlib.pyplot.gca().invert_yaxis()
+	plot = matplotlib.pyplot.gcf().add_subplot(111)
+	plot.tick_params(axis='both', which='major', labelsize=12)
+	matplotlib.pyplot.ylabel('g', size = 18)
+	matplotlib.pyplot.xlabel('g-i', size = 18)
+	
+	matplotlib.pyplot.show()
+	
+	figure2.savefig('colour-magnitude.eps',dpi=100, format='eps')
 	
