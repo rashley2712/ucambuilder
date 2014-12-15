@@ -195,13 +195,24 @@ def removeCAT(number):
     os.remove(filename)
 
 
-def runSex(tmpFilename):
-    """ Runs a sextractor process for an image that has just been placed in a FITS file
-    """
-    catFilename = tmpFilename[:-5] + ".cat"
-    catFileParameter = " CATALOG_NAME " + str(catFilename)
-    subprocess.call(["sex", tmpFilename, "-" + catFileParameter])
-    return catFilename
+def runSex(tmpFilename, apertures = 'False'):
+	""" Runs a sextractor process for an image that has just been placed in a FITS file
+	"""
+	sexCommand = ["sex"]
+	sexCommand.append(tmpFilename)
+    
+	catFilename = tmpFilename[:-5] + ".cat"
+	catFileParameter = "-CATALOG_NAME " + str(catFilename)
+	sexCommand.append(catFileParameter)
+    
+	if(apertures==True):
+		apertureDirective = "-CHECKIMAGE_TYPE APERTURES"
+		sexCommand.append(apertureDirective)
+		apertureFiles =  "-CHECKIMAGE_NAME " + tmpFilename[:-5] + ".aperture.fits"
+		sexCommand.append(apertureFiles)
+		
+	subprocess.call(sexCommand)
+	return catFilename
     
 
 def readSexObjects(catFilename, sexMagnitude):

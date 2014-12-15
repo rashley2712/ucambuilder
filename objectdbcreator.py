@@ -164,6 +164,8 @@ if __name__ == "__main__":
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
 	parser.add_argument('-C', '--channels', default='rgb', type=str, help='Which channels to run the extraction on \'rgb\'')
 	parser.add_argument('-v', '--version', default='primary', help="Optional version string.")
+	parser.add_argument('--gray', action='store_true', help='Output gray scale images (rather than using an r, g, b palette for each channel).')
+	parser.add_argument('--apertures', action='store_true', help='Write the aperture files (for each frame) to /tmp.')
 	arg = parser.parse_args()
 
 	channelNames = []
@@ -276,7 +278,7 @@ if __name__ == "__main__":
 				windowImage = singleChannelFrame[j]
 				
 				tmpFilename = ultracamutils.createFITS(trueFrameNumber, j, channel, windowImage, arg.runname)
-				catFilename = ultracamutils.runSex(tmpFilename)
+				catFilename = ultracamutils.runSex(tmpFilename, arg.apertures)
 				newObjectsinWindow = ultracamutils.readSexObjects(catFilename, config.SEX_MAGNITUDE)
 			
 				newObjectsinWindow = ultracamutils.rejectBadObjects(newObjectsinWindow)
@@ -389,14 +391,17 @@ if __name__ == "__main__":
 		
 		palette = []
 		for i in range(256):
-			if channel == 'r': palette.extend((255, 255-i, 255-i)); # red palette
-			if channel == 'g': palette.extend((255-i, 255, 255-i)); # green palette
-			if channel == 'b': palette.extend((255-i, 255-i, 255)); # blue palette
+			if (arg.gray): 
+				palette.extend((255-i, 255-i, 255-i)) # inverse grey scale
+			else:
+				if channel == 'r': palette.extend((255, 255-i, 255-i)); # inverse red palette
+				if channel == 'g': palette.extend((255-i, 255, 255-i)); # inverse green palette
+				if channel == 'b': palette.extend((255-i, 255-i, 255)); # inverse blue palette
 		img.putpalette(palette)
 		
 		img.putdata(testData)
 		debug.write("Writing PNG file: " + imageFilename, level = 2) 
-		img.save(imageFilename, "PNG")
+		img.save(imageFilename, "PNG", clobber=True)
 
 		
 	if (int(config.WRITE_JSON)==1):

@@ -20,7 +20,7 @@ def findClosestTime(data, target):
 
 if __name__ == "__main__":
 
-	parser = argparse.ArgumentParser(description='Uses matplotlib to makeshow the residuals of 2 light curves.')
+	parser = argparse.ArgumentParser(description='Uses matplotlib to show the residuals of 2 light curves.')
 	parser.add_argument('datafile1', type=str, help='Input data file for the light curves (usually a CSV file.')
 	parser.add_argument('datafile2', type=str, help='Input data file for the light curves (usually a CSV file.')
 	arg = parser.parse_args()

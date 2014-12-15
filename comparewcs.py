@@ -21,7 +21,10 @@ if __name__ == "__main__":
 	parser = argparse.ArgumentParser(description='Compares the wcs solutions produced by Astrometry.net across r, g and b.')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-d', '--debuglevel', default = 1, type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
+	parser.add_argument('--arrowscale', default = 1, type=int, help='Factor to scale the arrows')
 	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
+	parser.add_argument('--plotcolour', type=str, default='r', help='Plot chart for this colour')
+	parser.add_argument('-s',  action='store_true', help='Plot the SIP correction, rather than the colour-colour offset')
 	
 	arg = parser.parse_args()
 
@@ -145,7 +148,7 @@ if __name__ == "__main__":
 	print "Test world:", world
 	print "Test pixel:", pixel
 	
-	colour = 'b'
+	colour = arg.plotcolour
 	catalogFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_" + colour + ".xyls"
 	print "Now load the red input catalog:", catalogFilename
 	catalogFile = astropy.io.fits.open(catalogFilename)
@@ -171,20 +174,31 @@ if __name__ == "__main__":
 	figure = matplotlib.pyplot.figure(figsize=(12, 12))
 	
 	ymax = 1032
-	arrowScale = 10000000
+	arrowScale = arg.arrowscale
+	separations = []
 	for o in objects:
-		# First transform to world coordinates without using SIP
+		# First transform to world coordinates using SIP
 		(x, y) = o['x'], o['y']
-		(world_x, world_y) = wcsSolutions['r'].getWorldCoord((x,y))
-		print x, y, ":", world_x, world_y, 
-		# Now revert back to pixel position with SIP polynomial
+		(world_x, world_y) = wcsSolutions[colour].getWorldCoord((x,y))
+		(worldSIP_x, worldSIP_y) = wcsSolutions[colour].getWorldSIP((x,y))
+		# Now revert back to pixel position with SIP polynomial and the red transformation
 		(new_x, new_y) = wcsSolutions['r'].getPixel((world_x, world_y))
+		(sip_x, sip_y) = wcsSolutions[colour].getPixel((worldSIP_x, worldSIP_y))
 		x_arrow = new_x - x
 		y_arrow = new_y - y
-		print x_arrow, y_arrow
+		print x, '[' + str(new_x) +']', y, ":", '[' + str(new_y) +']', math.sqrt(x_arrow**2 +  y_arrow**2)
+		print "World", world_x, world_y, "World SIP", worldSIP_x, worldSIP_y
+		sipCorrection = math.sqrt( (x-sip_x)**2 + (y-sip_y)**2 )
+		print x, sip_x, y, sip_y, 'sip correction', sipCorrection
+		if arg.s:
+			x_arrow = sip_x - x
+			y_arrow = sip_y - y
+		
+		separations.append(math.sqrt(x_arrow**2 +  y_arrow**2))
 		matplotlib.pyplot.plot([x, x + x_arrow * arrowScale], [ ymax - y, ymax - (y + y_arrow * arrowScale)], lw=1, color='black')
 	
-	
+	print "mean:", numpy.mean(separations)
+	print "median:", numpy.median(separations)
 	matplotlib.pyplot.gca().invert_yaxis()
 	
 	# Also load the image bitmap

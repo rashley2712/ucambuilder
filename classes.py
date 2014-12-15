@@ -34,7 +34,7 @@ class runObject:
 		self.totalTime = 0
 		runMetaData = trm.ultracam.Rhead(runPath, server=False)
 		self.mode = runMetaData.mode
-		self.userData = runMetaData.user
+		#self.userData = runMetaData.user
 		try: 
 			self.nblue = runMetaData.nblue
 		except AttributeError:
@@ -51,6 +51,10 @@ class runObject:
 		self.objectID = "?"
 		self.target = "?"
 		self.expose = 0
+		try: 
+			self.exposeTime = runMetaData.exposeTime 
+		except:
+			self.exposeTime = -1
 		self.num = 0
 		self.dataProcessed = False
 		self.numWindows = 0
@@ -184,9 +188,10 @@ class runObject:
 		
 	def __str__(self):
 		outStr = "RunID: " + self.runID + "\n"
-		outStr = "Date: " + self.runDate + "\n"
+		outStr+= "Date: " + self.runDate + "\n"
 		outStr+= "Target: " + self.target + " RA:" + str(self.ra) + " DEC: " + str(self.dec) + "\n"
 		outStr+= "Frames: " + str(self.numFrames) + "\n"
+		outStr+= "Expose time: " + str(self.exposeTime) + "\n"
 		outStr+= "Mode: " + self.mode + "\n"
 		outStr+= "nBlue: " + str(self.nblue) + "\n"
 		outStr+= "Comments: " + str(self.comment) + "\n"
