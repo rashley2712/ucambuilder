@@ -228,20 +228,22 @@ class configObject:
     """ This class stores all of the configuration for the run
 	"""
     def __init__(self):
-        self.ULTRACAMRAW = "/storage/astro1/phsaap/ultracam/raw_data"
-        self.DEBUG = 1
-        self.SITE_PATH = "/storage/astro2/phrnaw/ucamsite"
-        self.TMP_PATH = "/tmp"
-        self.WRITE_FITS = 0
-        self.KEEP_TMP_FILES = 0
-        self.WRITE_JSON = 0
-        self.MOVIE_TMP_PATH = "/tmp/movie"
-        self.MINPIXELDISTANCE = 5
-        self.FONT = "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf"
-        self.RUNTEMPLATE = "/home/rashley/astro/ucamsite/templates/runxxx.jinja"
-        self.WORKINGDIR = "/storage/astro2/phrnaw/ucamsite"
-        self.COMPARISON_THRESHOLD = 95.
-        self.SEX_MAGNITUDE = "FLUX_AUTO"
+		self.ULTRACAMRAW = "/storage/astro1/phsaap/ultracam/raw_data"
+		self.DEBUG = 1
+		self.SITE_PATH = "/storage/astro2/phrnaw/ucamsite"
+		self.TMP_PATH = "/tmp"
+		self.WRITE_FITS = 0
+		self.KEEP_TMP_FILES = 0
+		self.WRITE_JSON = 0
+		self.MOVIE_TMP_PATH = "/tmp/movie"
+		self.MINPIXELDISTANCE = 5
+		self.FONT = "/usr/share/fonts/truetype/ubuntu-font-family/Ubuntu-B.ttf"
+		self.RUNTEMPLATE = "/home/rashley/astro/ucamsite/templates/runxxx.jinja"
+		self.WORKINGDIR = "/storage/astro2/phrnaw/ucamsite"
+		self.COMPARISON_THRESHOLD = 95.
+		self.SEX_MAGNITUDE = "FLUX_AUTO"
+		self.FRAME_STACK_BIN = 10
+		self.FRAME_MINIMUM = 100
 
     def __setitem__(self, item, value):
 		setattr(self, item, value)

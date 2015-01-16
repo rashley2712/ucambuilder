@@ -416,6 +416,33 @@ def writeFriendlyTimeMinutes(minutes):
 	
 	return timeStr
 
+def fromSexagesimal(raStr, decStr):
+	""" Format for input ra and dec are 'HH:MM:SS.dd' and 'nDD:MM:SS.dd'
+									or 	'HH MM SS.dd' and 'nDD MM SS.dd'
+	"""
+	separator = ':'
+	if raStr.find(separator)==-1:
+		separator = ' '
+	raPieces = raStr.split(separator)
+	raHours = int(raPieces[0])
+	raMinutes = int(raPieces[1])
+	raSeconds = float(raPieces[2])
+	ra = 15 * (raHours + raMinutes/60.0 + raSeconds / 3600.0)
+	
+	decPieces = decStr.split(separator)
+	if decPieces[0][0]=='-':
+		south = True
+	else:
+		south = False
+	decHours = int(decPieces[0])
+	decMinutes = int(decPieces[1])
+	decSeconds = float(decPieces[2])
+	dec = decHours + decMinutes/60.0 + decSeconds / 3600.0
+	if south:
+		dec = decHours - decMinutes/60.0 - decSeconds / 3600.0
+		
+	return (ra, dec)
+
 def toSexagesimal(world):
 	raDeg = world[0]
 	ra = raDeg/15.

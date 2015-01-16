@@ -1,4 +1,5 @@
 import numpy, json
+import xml.etree.ElementTree as ElementTree
 from scipy.ndimage.filters import gaussian_filter
 import ultracamutils
 
@@ -55,6 +56,12 @@ class window:
 		self.data = data
 		if len(self.stackedData) == 0:
 			self.stackedData = data
+	
+	def setBlankData(self, data):
+		dataShape = numpy.shape(data)
+		blanks = numpy.zeros(dataShape)
+		if len(self.stackedData) == 0:
+			self.stackedData = blanks
 
 	def addData(self, data):
 		self.stackedData = self.stackedData + data
@@ -98,6 +105,9 @@ class runInfo:
 	def __init__(self, runPath):
 		self.runPath = runPath
 		self.runDate, self.runID = ultracamutils.separateRunNameAndDate(runPath)
+		self.comment = ""
+		self.ra = 0
+		self.dec = 0
 		
 	def loadFromJSON(self, JSONFilename):
 		JSONfile = open(JSONFilename, "r")
@@ -105,18 +115,54 @@ class runInfo:
 		run = {}
 		runNumberStr = self.runID[3:]
 		runNumber = int(runNumberStr)
-	
+		
+		objectNotFound = True
+		
 		for object in allObjectsJSON:
 			date = object['night']
 			num = object['num']
 			if ((date == self.runDate) & (runNumber == num)):
+				objectNotFound = False
 				self.comment = object["comment"]
-				self.ra = object['ra']
+				self.ra = object['ra'] * 15. # Convert the ultra.json RA value to degrees
 				self.dec = object['dec']
 				self.objectID = object['id']
 				self.target = object['target']
 				self.num = object['num']
 				self.expose = object['expose']
 				print object
-			
+				return True 
+		return False
+            
 
+	def loadFromXML(self, rawDataDirectory):
+		""" This method is called upon if the loadFromJSON method fails to return any data
+		"""
+		print "Trying to load run info from the XML file"
+		XMLFilename = ultracamutils.addPaths(rawDataDirectory, self.runPath) + ".xml"
+		print XMLFilename
+		try:
+			tree = ElementTree.parse(XMLFilename)
+		except IOError as e:
+			print "Could not get read the run's XML file."
+			return False
+		
+		root = tree.getroot()
+		user = root.find('user')
+		target = user.find('target').text
+		PI = user.find('PI').text
+		ID = user.find('ID').text
+		observers = user.find('Observers').text
+		raStr = user.find('RA').text
+		decStr = user.find('Dec').text
+		ra, dec = ultracamutils.fromSexagesimal(raStr, decStr)
+		print "Target:", target
+		print "PI: %s Observers: %s  Programme: %s"%(PI, observers, ID)
+		print "(ra, dec): (%f, %f)"%(ra, dec)
+		
+		self.ra = ra
+		self.dec = dec
+		self.target = target
+		
+		return True
+        
