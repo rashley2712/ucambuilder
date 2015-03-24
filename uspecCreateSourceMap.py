@@ -53,6 +53,7 @@ if __name__ == "__main__":
 	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run')
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
 	parser.add_argument('--xyls', action='store_true', help='Write an XYLS (FITS) file output catalog that can be used as input to Astronomy.net')
+	parser.add_argument('--usefirstframe', action='store_true', help='Use the first frame of the run. Usually the first frame will be discarded.')
 	
 	arg = parser.parse_args()
 
@@ -63,7 +64,10 @@ if __name__ == "__main__":
 	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
 	
 	runInfo = ultraspecClasses.runInfo(arg.runname)
-	runInfo.loadFromJSON(config.RUNINFO)
+	found = runInfo.loadFromJSON(config.RUNINFO)
+	if not found:
+		debug.write("Could not get info for this run from the ultra.json file.", level = 1)
+		xmlRead = runInfo.loadFromXML(config.ULTRASPECRAW)
 		
 	runFilename = ultracamutils.addPaths(config.ULTRASPECRAW, arg.runname)
 
@@ -91,6 +95,111 @@ if __name__ == "__main__":
 		debug.error("startframe " + str(startFrame) + ", is beyond the end of the run, which has only " + str(maximumFrames) + " frames in it.")
 		sys.exit()
 		
+	if maximumFrames<10:
+		print "The total number of frames in this run is less than 10. We need more to create a source map. Exiting."
+		sys.exit()
+	
+	""" We are going to use the first 10 frames to build the original source map that is merely used as a guide for creating the main stacked image.
+	"""	
+	
+	originalStackedFrame = numpy.zeros((1057, 1040))
+	
+	ccdFrame = rdat()
+	window = ccdFrame[0]
+	allWindows = []	
+	for windowIndex, w in enumerate(window):
+		# Set up some info about the window sizes and extents
+		window = ultraspecClasses.window()
+		window.setExtents(w.llx, w.lly, w.nx, w.ny)
+		window.setBinning(w.xbin, w.ybin)
+		
+		image = w._data
+		if (arg.usefirstframe):
+			window.setData(image)
+			bkg_sigma = 1.48 * mad(image)
+			print "bkg_sigma", bkg_sigma   
+			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
+			window.setSources(sources)	
+		else: 
+			window.setBlankData(image)
+		
+		
+		allWindows.append(window)
+		
+	(xmin, ymin, xmax, ymax) = determineFullFrameSize(allWindows)
+	fullFramexsize = xmax - xmin
+	fullFrameysize = ymax - ymin
+	sourceMap = ultraspecClasses.sourceMap((fullFrameysize, fullFramexsize))
+	
+	for frame in range(10):
+		print "Frame:", frame
+		ccdFrame = rdat()
+		windows = ccdFrame[0]
+		
+		for windowIndex, w in enumerate(windows):
+			image = w._data
+			allWindows[windowIndex].addData(image)
+			
+		
+	# Reconstruct the full frame from the windows	
+	stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
+	matplotlib.pyplot.title("Initial 10 frame stacked image")
+	boostedFullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
+	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
+	for w in allWindows:
+		boostedImage = ultracamutils.percentiles(w.stackedData, 10, 99.8)
+		image = w.stackedData
+		xll = w.xll/w.xbin - xmin
+		xsize = w.nx
+		yll = w.yll/w.ybin - ymin
+		ysize = w.ny
+		boostedFullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
+		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + image
+		
+		bkg_sigma = 1.48 * mad(image)
+		print "bkg_sigma", bkg_sigma   
+		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma) 
+		print "Num sources in this window:", len(sources)  
+		w.setSources(sources)	
+		
+		
+	# Get the source list from this image
+	# Combine the sources in all of the windows
+	allSources = []
+	for index, w in enumerate(allWindows):
+		xll = w.xll/w.xbin - xmin
+		yll = w.yll/w.ybin - ymin
+		sources = w.getSources()
+		positions = zip(sources['xcentroid'], sources['ycentroid'], sources['flux'])
+		new_positions = [(x + xll, y + yll, flux) for (x, y, flux) in positions]
+		allSources+=new_positions
+		
+		
+	allSources = sorted(allSources, key=lambda object: object[2], reverse = True)
+	print allSources
+	numSources = len(allSources)
+	maxSources = int(round((numSources)/2.))
+	topSources = allSources[0:maxSources-1]
+	print "Number of sources: %d, number of top sources: %d"%(numSources, maxSources)
+	# Display the image on the user's screen
+	
+	image = matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
+	for s in allSources:
+		x, y = s[0], s[1]
+		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
+	for s in topSources:
+		x, y = s[0], s[1]
+		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='blue', fill=False, linewidth=1.0))
+	
+	matplotlib.pyplot.gca().invert_yaxis()			
+	matplotlib.pyplot.show(block=True)
+	
+	""" End of the prework """
+
+
+	rdat.set(1)		# Reset back to the first frame
+	
+
 	frameRange = maximumFrames - startFrame + 1
 	
 	if arg.numframes!=None:
@@ -126,12 +235,15 @@ if __name__ == "__main__":
 		
 		image = w._data
 		#image -= numpy.median(image)
-		window.setData(image)
+		if (arg.usefirstframe):
+			window.setData(image)
+			bkg_sigma = 1.48 * mad(image)
+			print "bkg_sigma", bkg_sigma   
+			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
+			window.setSources(sources)	
+		else: 
+			window.setBlankData(image)
 		
-		bkg_sigma = 1.48 * mad(image)
-		print "bkg_sigma", bkg_sigma   
-		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
-		window.setSources(sources)	
 		
 		allWindows.append(window)
 		
@@ -339,7 +451,7 @@ if __name__ == "__main__":
 		ysize = w.ny
 		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + imageData
 
-	ra = runInfo.ra * 15.  # Convert RA to degrees
+	ra = runInfo.ra  # Convert RA to degrees
 	dec = runInfo.dec
 	fieldScaleX = -8.3E-05
 	fieldScaleY = 8.3E-05
