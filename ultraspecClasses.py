@@ -2,6 +2,7 @@ import numpy, json
 import xml.etree.ElementTree as ElementTree
 from scipy.ndimage.filters import gaussian_filter
 import ultracamutils
+from astropy.table import Table
 
 class aperture:
 	""" This is an aperture instance 
@@ -41,6 +42,7 @@ class window:
 		self.data = None
 		self.stackedData = []
 		self.sources = None
+		self.borderWidth = 10
 		
 	def setExtents(self, xll, yll, nx, ny):
 		self.xll = xll
@@ -67,8 +69,32 @@ class window:
 		self.stackedData = self.stackedData + data
 		self.data = data
 		
+	def addToStack(self, data):
+		self.stackedData = self.stackedData + data
+		
+	def filterBorderSources(self):
+		currentNumSources = len(self.sources)
+		if currentNumSources==0:
+			return 0
+		sourcesToRemove = []
+		for index, s in enumerate(self.sources):
+			x = s['xcentroid']
+			y = s['ycentroid']
+			if (x < self.borderWidth) or (x > (self.nx - self.borderWidth)): 
+				sourcesToRemove.append(index)
+				continue
+			if (y < self.borderWidth) or (y > (self.ny - self.borderWidth)): 
+				sourcesToRemove.append(index)
+				continue
+		self.sources.remove_rows(sourcesToRemove)
+		return len(self.sources)
+		
 	def setSources(self, sources):
 		self.sources = sources
+		
+	def setSourcesAvoidBorders(self, sources):
+		self.sources = sources
+		self.filterBorderSources()
 		
 	def getSources(self):
 		return self.sources
