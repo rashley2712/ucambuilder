@@ -41,6 +41,7 @@ class window:
 		self.ny = 0
 		self.data = None
 		self.stackedData = []
+		self.BGSubtractedImage = []
 		self.sources = None
 		self.borderWidth = 10
 		

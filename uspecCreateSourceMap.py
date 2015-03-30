@@ -11,7 +11,6 @@ import argparse
 import numpy, math
 import classes
 import ultraspecClasses
-#import rashley_utils as utils
 from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import ultracam_shift
@@ -25,6 +24,12 @@ from photutils import daofind
 from photutils import aperture_photometry, CircularAperture, psf_photometry, GaussianPSF
 import astropy.table, astropy.io
 from astropy.stats import median_absolute_deviation as mad
+import astropy.stats.sigma_clipping
+from astropy.stats import sigma_clipped_stats
+from astropy.convolution import Gaussian2DKernel
+from photutils.detection import detect_sources
+from scipy.ndimage import binary_dilation
+from photutils.background import Background
 
 def shift_func(output_coords, xoffset, yoffset):
 	return (output_coords[0] - yoffset, output_coords[1] - xoffset)
@@ -45,6 +50,8 @@ def determineFullFrameSize(windows):
 		
 
 if __name__ == "__main__":
+	
+	print "Astropy version", astropy.__version__
 	
 	parser = argparse.ArgumentParser(description='Reads the Ultraspec [dd-mm-yyyy/runxxx.dat] files produces previews of the images')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
@@ -185,7 +192,7 @@ if __name__ == "__main__":
 		
 	allSources = sorted(allSources, key=lambda object: object[2], reverse = True)
 	numSources = len(allSources)
-	maxSources = int(round((numSources)*0.6))
+	maxSources = int(round((numSources)*0.4))
 	topSources = allSources[0:maxSources]
 	print "Number of sources: %d, number of top sources: %d"%(numSources, maxSources)
 	# Display the image on the user's screen
@@ -379,6 +386,71 @@ if __name__ == "__main__":
 	sys.stdout.write("\rProcessed %d frames      \n"%frameRange)
 	sys.stdout.flush()
 	
+	
+	
+	
+	allSources = []
+	for index, w in enumerate(allWindows):
+		xll = w.xll/w.xbin - xmin
+		yll = w.yll/w.ybin - ymin
+		image = w.stackedData
+		mean, median, std = sigma_clipped_stats(image, sigma=3.0)
+		maximum = numpy.max(image)
+		minimum = numpy.min(image)
+		print "Mean:", mean, " Median:", median, " Std (clipped 3sigma):", std
+		print "Minimum:", minimum, " Maximum:", maximum
+		threshold = median + (std * 2.)
+		segm_img = detect_sources(image, threshold, npixels=5)
+		mask = segm_img.astype(numpy.bool)
+		mean, median, std = sigma_clipped_stats(image, sigma=3.0, mask=mask) 
+		print "After source masking"
+		print "Mean:", mean, " Median:", median, " Std (clipped 3sigma):", std
+		selem = numpy.ones((5, 5))    # dilate using a 5x5 box
+		mask2 = binary_dilation(mask, selem)
+		mean, median, std = sigma_clipped_stats(image, sigma=3.0, mask=mask2)
+		print "After dilation"
+		print "Mean:", mean, " Median:", median, " Std (clipped 3sigma):", std
+		bkg = Background(image, (25, 25), filter_shape=(3, 3), method='median')
+		bgImage = matplotlib.pyplot.figure(figsize=(10, 10))
+		matplotlib.pyplot.imshow(bkg.background, origin='lower', cmap='Greys_r')
+		matplotlib.pyplot.show(block=False)
+		image = image - bkg.background
+		bkg_sigma = 1.48 * mad(image)
+		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
+		print sources
+		w.setSourcesAvoidBorders(sources)
+		w.BGSubtractedImage = image	
+		
+		sources = w.getSources()
+		positions = zip(sources['xcentroid'], sources['ycentroid'], sources['flux'])
+		new_positions = [(x + xll, y + yll, flux) for (x, y, flux) in positions]
+		allSources+=new_positions
+
+	# Get the final stacked image
+	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
+	for w in allWindows:
+		imageData = w.stackedData
+		boostedImageData = ultracamutils.percentiles(w.BGSubtractedImage, 40, 99.8)
+		xll = w.xll/w.xbin - xmin
+		xsize = w.nx
+		yll = w.yll/w.ybin - ymin
+		ysize = w.ny
+		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + imageData
+		boostedFullFrame[yll:yll+ysize, xll:xll+xsize] = boostedFullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImageData
+
+	
+	tempSources = [ (x, y) for (x, y, flux) in allSources]
+	allSources = tempSources	
+	finalFigure = matplotlib.pyplot.figure(figsize=(10, 10))
+	matplotlib.pyplot.title("Final stacked image")
+	matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
+	for s in allSources:
+		(x, y) = s
+		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 5, color='blue', fill=False, linewidth=1.0))
+	matplotlib.pyplot.gca().invert_yaxis()
+	matplotlib.pyplot.draw()
+	matplotlib.pyplot.show()
+	
 	# Get the source map
 	smoothedSourceMap = sourceMap.getSmoothMap()
 	
@@ -461,14 +533,9 @@ if __name__ == "__main__":
 		ysize = w.ny
 		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
 	
-	#image = matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
-	#matplotlib.pyplot.gca().invert_yaxis()			
-	#matplotlib.pyplot.show(block=True)
-	
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
-	#matplotlib.pyplot.savefig(outputFilename)
 	
-	# Do the same thing, but use the PIL library
+	# Write the image with PIL library, rather than matplotlib
 	imgData = numpy.rot90(fullFrame, 3)
 	imgSize = numpy.shape(imgData)
 	imgLength = imgSize[0] * imgSize[1]
@@ -546,3 +613,4 @@ if __name__ == "__main__":
 	json.dump(apertureList, outputFile)
 	outputFile.close()
 		
+
