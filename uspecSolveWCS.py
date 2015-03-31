@@ -10,7 +10,6 @@ import argparse, subprocess
 import numpy, math
 import classes
 import ultraspecClasses
-#import rashley_utils as utils
 from trm import ultracam
 from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import ultracam_shift
@@ -23,7 +22,6 @@ from photutils import daofind
 from photutils import aperture_photometry, CircularAperture, psf_photometry, GaussianPSF
 import astropy.table, astropy.io
 from astropy.stats import median_absolute_deviation as mad
-
 
 
 if __name__ == "__main__":
@@ -49,16 +47,22 @@ if __name__ == "__main__":
 	
 	runInfo = ultraspecClasses.runInfo(arg.runname)
 	runInfo.loadFromJSON(config.RUNINFO)
+	
+	debug.write(runInfo, 2)
+	
+	coordinates = (runInfo.ra, runInfo.dec)
+	debug.write(coordinates, 2)
+	debug.write(ultracamutils.toSexagesimal(coordinates), 2)
 		
 	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
 	
-	""" Check that the stacked image and is available
+	""" Check that the stacked image is available
 	"""
 	(runDate, runNumber) = ultracamutils.separateRunNameAndDate(arg.runname)
 	
 	workingFolder = ultracamutils.addPaths(config.WORKINGDIR, runDate)
 	
-	stackedImageFilename = workingFolder + '/' + runNumber + "_stacked.fits"
+	stackedImageFilename = workingFolder + '/' + runNumber + ".png"
 	if os.path.isfile(stackedImageFilename):
 		print "Found - ", stackedImageFilename 
 	else: 
@@ -73,11 +77,12 @@ if __name__ == "__main__":
 	astrometryCommand.append("--wcs=" + solutionOutputFile)
 	astrometryCommand.append("--wcsfits=" + FITSSolutionOutputFile)
 	astrometryCommand.append("-w")
-	astrometryCommand.append("--ra=" + str(runInfo.ra*15))
+	astrometryCommand.append("--ra=" + str(runInfo.ra))
 	astrometryCommand.append("--dec=" + str(runInfo.dec))
 	astrometryCommand.append("--radius=1")
 	debug.write(astrometryCommand, level =2)
 	
-	subprocess.call(astrometryCommand)
+	result = subprocess.call(astrometryCommand)
 	
+	print "Result:", result
 	

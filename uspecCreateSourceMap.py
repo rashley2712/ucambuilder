@@ -580,60 +580,6 @@ if __name__ == "__main__":
 	
 	hdulist = astropy.io.fits.HDUList([hdu])
 	hdulist.writeto(FITSFilename, clobber=True)
-	
-
-		
+			
 	sys.exit()
 	
-	
-	""" Old code
-	# Get the source map
-	smoothedSourceMap = sourceMap.getSmoothMap()
-	
-	# Now use this source map to generate a set of apertures
-	bkg_sigma = 1.48 * mad(smoothedSourceMap)
-	print "sourceMap median:", numpy.median(smoothedSourceMap)
-	print "sourceMap mean:", numpy.mean(smoothedSourceMap)
-	print "sourceMap max:", numpy.max(smoothedSourceMap)
-	threshold = frameRange/100.
-	print "threshold:", threshold
-	apertureSources = daofind(smoothedSourceMap, fwhm=4.0, threshold=threshold)   
-	
-	# Draw the source map 
-	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Source map")
-	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
-	for s in apertureSources:
-		x, y = s['xcentroid'], s['ycentroid']
-		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
-	matplotlib.pyplot.gca().invert_yaxis()			
-	#matplotlib.pyplot.show(block=False)
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap.png"
-	matplotlib.pyplot.savefig(outputFilename)
-
-	# Draw the source map with no apertures
-	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Source map")
-	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
-	matplotlib.pyplot.gca().invert_yaxis()
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap_clean.png"
-	matplotlib.pyplot.savefig(outputFilename)
-	
-	# Now write out the aperture data
-	
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_apertures.json"
-	outputFile = open(outputFilename, "w")
-	apertureList = []
-	for i, s in enumerate(apertureSources):
-		aperture = {}
-		aperture['id'] = i
-		aperture['x'] = s['xcentroid']
-		aperture['y'] = s['ycentroid']
-		aperture['sharpness'] = s['sharpness']
-		aperture['roundness1'] = s['roundness1']
-		aperture['roundness2'] = s['roundness2']
-		aperture['flux'] = s['flux']
-		apertureList.append(aperture)
-	json.dump(apertureList, outputFile)
-	outputFile.close()
-	"""
