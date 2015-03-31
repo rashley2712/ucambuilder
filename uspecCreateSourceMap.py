@@ -51,8 +51,6 @@ def determineFullFrameSize(windows):
 
 if __name__ == "__main__":
 	
-	print "Astropy version", astropy.__version__
-	
 	parser = argparse.ArgumentParser(description='Reads the Ultraspec [dd-mm-yyyy/runxxx.dat] files produces previews of the images')
 	parser.add_argument('runname', type=str, help='Ultracam run name  [eg 2013-07-21/run010]')
 	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib')
@@ -65,9 +63,9 @@ if __name__ == "__main__":
 	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
 	parser.add_argument('--xyls', action='store_true', help='Write an XYLS (FITS) file output catalog that can be used as input to Astronomy.net')
 	parser.add_argument('--usefirstframe', action='store_true', help='Use the first frame of the run. Usually the first frame will be discarded.')
+	parser.add_argument('-i', '--keyimages', action='store_true', help='Show some key images during the processing of this run.')
 	
 	arg = parser.parse_args()
-	
 	
 	config = ultracamutils.readConfigFile(arg.configfile)
 	
@@ -77,7 +75,9 @@ if __name__ == "__main__":
 	debug = classes.debugObject(config.DEBUG)
 	debug.toggleTimeLog()
 	if (arg.debuglevel!=None): debug.setLevel(arg.debuglevel);
-	debug.write(arg)
+	debug.write(arg, level = 2)
+	debug.write("Astropy version %s"%(astropy.__version__), level = 3)
+	
 	
 	runInfo = ultraspecClasses.runInfo(arg.runname)
 	found = runInfo.loadFromJSON(config.RUNINFO)
@@ -85,9 +85,11 @@ if __name__ == "__main__":
 		debug.write("Could not get info for this run from the ultra.json file.", level = 1)
 		xmlRead = runInfo.loadFromXML(config.ULTRASPECRAW)
 		
+	debug.write(runInfo, 2)
+		
 	runFilename = ultracamutils.addPaths(config.ULTRASPECRAW, arg.runname)
 
-	debug.write("Opening the Ultraspec raw file at: " + runFilename, level = 3)
+	debug.write("Opening the Ultraspec raw file at: " + runFilename, level = 2)
 	
 	runDate, runID = ultracamutils.separateRunNameAndDate(arg.runname)
 	
@@ -112,12 +114,13 @@ if __name__ == "__main__":
 		sys.exit()
 		
 	if maximumFrames<10:
-		print "The total number of frames in this run is less than 10. We need more to create a source map. Exiting."
+		debug.error("The total number of frames in this run is less than 10. We need more to create a source map. Exiting.")
 		sys.exit()
 	
 	""" We are going to use the first 10 frames to build the original source map that is merely used as a guide for creating the main stacked image.
 	"""	
 	
+	debug.write("Examining the first 10 frames of the run...", level = 2)
 	originalStackedFrame = numpy.zeros((1057, 1040))
 	
 	ccdFrame = rdat()
@@ -133,32 +136,31 @@ if __name__ == "__main__":
 		if (arg.usefirstframe):
 			window.setData(image)
 			bkg_sigma = 1.48 * mad(image)
-			print "bkg_sigma", bkg_sigma   
 			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
 			window.setSources(sources)	
 		else: 
 			window.setBlankData(image)
-		
 		
 		allWindows.append(window)
 		
 	(xmin, ymin, xmax, ymax) = determineFullFrameSize(allWindows)
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
-	sourceMap = ultraspecClasses.sourceMap((fullFrameysize, fullFramexsize))
 	
+	# Stack up the next 10 frames - (numbers 2 to 11)
 	for frame in range(10):
 		ccdFrame = rdat()
-		windows = ccdFrame[0]
+		frameWindows = ccdFrame[0]
 		
-		for windowIndex, w in enumerate(windows):
+		for windowIndex, w in enumerate(frameWindows):
 			image = w._data
 			allWindows[windowIndex].addData(image)
 			
 		
-	# Reconstruct the full frame from the windows	
-	stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Initial 10 frame stacked image")
+	# Reconstruct a full frame from the windows	
+	if (arg.keyimages):
+		stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
+		matplotlib.pyplot.title("Initial 10 frame stacked image")
 	boostedFullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	for w in allWindows:
@@ -172,14 +174,12 @@ if __name__ == "__main__":
 		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + image
 		
 		bkg_sigma = 1.48 * mad(image)
-		print "bkg_sigma", bkg_sigma   
 		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma) 
-		print "Num sources in this window:", len(sources)  
 		w.setSourcesAvoidBorders(sources)	
 		
 		
 	# Get the source list from this image
-	# Combine the sources in all of the windows
+	# Combine the sources from all of the windows
 	allSources = []
 	for index, w in enumerate(allWindows):
 		xll = w.xll/w.xbin - xmin
@@ -190,24 +190,33 @@ if __name__ == "__main__":
 		allSources+=new_positions
 		
 		
+	# Sort these sources in order of brightness and take the top 40%
 	allSources = sorted(allSources, key=lambda object: object[2], reverse = True)
 	numSources = len(allSources)
 	maxSources = int(round((numSources)*0.4))
-	topSources = allSources[0:maxSources]
-	print "Number of sources: %d, number of top sources: %d"%(numSources, maxSources)
-	# Display the image on the user's screen
-	image = matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
-	for s in allSources:
-		x, y = s[0], s[1]
-		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
-	for s in topSources:
-		x, y = s[0], s[1]
-		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='blue', fill=False, linewidth=1.0))
+	debug.write("Number of sources: %d, number of top sources: %d"%(numSources, maxSources), 2)
+	if maxSources<1:
+		debug.write("WARNING: Not enough sources for shift calculation, proceeding in '--noshift' mode.", 1)
+		applyShift = False
+	else:
+		topSources = allSources[0:maxSources]
+		masterApertureList = [ (x, y) for (x, y, flux) in topSources]
+		
 	
-	matplotlib.pyplot.gca().invert_yaxis()			
-	matplotlib.pyplot.show(block=False)
+	if (arg.keyimages):
+		# Display the image on the user's screen
+		image = matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
+		for s in allSources:
+			x, y = s[0], s[1]
+			matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
+		if applyShift:
+			for s in topSources:
+				x, y = s[0], s[1]
+				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='blue', fill=False, linewidth=1.0))
+	
+		matplotlib.pyplot.gca().invert_yaxis()			
+		matplotlib.pyplot.show(block=False)
 
-	masterApertureList = [ (x, y) for (x, y, flux) in topSources]
 		
 	""" End of the prework """
 
@@ -231,7 +240,7 @@ if __name__ == "__main__":
 		matplotlib.pyplot.title("Frame image")
 		if arg.stack:
 			matplotlib.pyplot.title("Stacked image")
-		zoomedImage = matplotlib.pyplot.figure(figsize=(5, 5))
+		if applyShift: zoomedImage = matplotlib.pyplot.figure(figsize=(5, 5))
 		
 			
 	fullFrame = numpy.zeros((1057, 1040))
@@ -239,21 +248,18 @@ if __name__ == "__main__":
 	allWindows = []
 
 	ccdFrame = rdat()
-	#ccdFrame.rback()
-	window = ccdFrame[0]
+	frameWindows = ccdFrame[0]
 	
-	for windowIndex, w in enumerate(window):
+	for windowIndex, w in enumerate(frameWindows):
 		# Set up some info about the window sizes and extents
 		window = ultraspecClasses.window()
 		window.setExtents(w.llx, w.lly, w.nx, w.ny)
 		window.setBinning(w.xbin, w.ybin)
 		
 		image = w._data
-		#image -= numpy.median(image)
 		if (arg.usefirstframe):
 			window.setData(image)
 			bkg_sigma = 1.48 * mad(image)
-			print "bkg_sigma", bkg_sigma   
 			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
 			window.setSourcesAvoidBorders(sources)	
 		else: 
@@ -265,9 +271,7 @@ if __name__ == "__main__":
 	(xmin, ymin, xmax, ymax) = determineFullFrameSize(allWindows)
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
-	sourceMap = ultraspecClasses.sourceMap((fullFrameysize, fullFramexsize))
 			
-	debug.write("Building a map of sources in order to define the apertures...", level = 2)
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()
@@ -290,11 +294,8 @@ if __name__ == "__main__":
 		
 		for windowIndex, w in enumerate(windows):
 			image = w._data
-			#image -= numpy.median(image)
-			#allWindows[windowIndex].addData(image)
 			bkg_sigma = 1.48 * mad(image)
 			sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
-			#print sources
 			allWindows[windowIndex].setSourcesAvoidBorders(sources)	
 			
 		# Combine the sources in all of the windows
@@ -308,14 +309,11 @@ if __name__ == "__main__":
 			allSources+=new_positions
 
 		allSources = sorted(allSources, key=lambda object: object[2], reverse = True)
-		#print allSources
+		# Remove the flux column from the source list. We don't need it anymore. 
 		tempSources = [ (x, y) for (x, y, flux) in allSources]
-		#print tempSources
 		allSources = tempSources
-		sourceMap.updateMap(allSources)
 		
 		if (applyShift):
-		
 			oldCatalog = numpy.array(masterApertureList)
 			newCatalog = numpy.array(allSources)
 
@@ -325,16 +323,14 @@ if __name__ == "__main__":
 			mmax   = 10.
 
 			(gaussImage, xp, yp, xr, yr) = ultracam_shift.vimage(oldCatalog, newCatalog, dmax, psize, fwhm)
-			# (nmatch, inds) = ultracam_shift.match(oldCatalog, newCatalog, xp, yp, mmax)
-			debug.write("Calculated offset: (%2.2f, %2.2f)"%(xr, yr), level = 2)
+			debug.write("Applying offset: (%2.2f, %2.2f)"%(xr, yr), level = 3)
 
 		for windowIndex, w in enumerate(windows):
 			image = w._data
 			allWindows[windowIndex].setData(image)
-			if (applyShift): image = ndimage.interpolation.shift(image, (-1.0*yr, -1.0*xr), order = 3 )
+			if (applyShift): image = ndimage.interpolation.shift(image, (-1.0*yr, -1.0*xr), order = 4 )
 			allWindows[windowIndex].addToStack(image)
-			
-			
+				
 		if arg.preview: 
 			fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 			for w in allWindows:
@@ -365,29 +361,28 @@ if __name__ == "__main__":
 			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
 			
 			# Now also draw the zoomed in region around the first aperture
-			(x, y) = masterApertureList[0]
-			croppedFrame = fullFrame[y-10:y+10, x-9:x+10]
+			if (applyShift):
+				(x, y) = masterApertureList[0]
+				croppedFrame = fullFrame[y-10:y+10, x-9:x+10]
 			
-			matplotlib.pyplot.figure(zoomedImage.number)
-			matplotlib.pyplot.imshow(croppedFrame, cmap='gray_r')
-			matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((10,10), 1, color='green', fill=False, linewidth=1.0))
-			matplotlib.pyplot.plot([10, 10+xr], [ 10, 10+yr], lw=1, color='green')
-			matplotlib.pyplot.title("Zoom on aperture number 1: Frame [%d/%d]"%(trueFrameNumber, frameRange))
-			matplotlib.pyplot.xlim([0, 20])
-			matplotlib.pyplot.ylim([0, 20])
-			matplotlib.pyplot.gca().invert_yaxis()
-			matplotlib.pyplot.draw()
-			matplotlib.pyplot.show()
-			
-			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
+				matplotlib.pyplot.figure(zoomedImage.number)
+				matplotlib.pyplot.imshow(croppedFrame, cmap='gray_r', interpolation = 'nearest')
+				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((10,10), 1, color='green', fill=False, linewidth=1.0))
+				matplotlib.pyplot.plot([10, 10+xr], [ 10, 10+yr], lw=1, color='green')
+				matplotlib.pyplot.title("Zoom on aperture number 1: Frame [%d/%d]"%(trueFrameNumber, frameRange))
+				matplotlib.pyplot.xlim([0, 20])
+				matplotlib.pyplot.ylim([0, 20])
+				matplotlib.pyplot.gca().invert_yaxis()
+				matplotlib.pyplot.draw()
+				matplotlib.pyplot.show()
+				matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
 			
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
 	sys.stdout.write("\rProcessed %d frames      \n"%frameRange)
 	sys.stdout.flush()
 	
-	
-	
+	""" We have run through all of the images now. """
 	
 	allSources = []
 	for index, w in enumerate(allWindows):
@@ -397,27 +392,42 @@ if __name__ == "__main__":
 		mean, median, std = sigma_clipped_stats(image, sigma=3.0)
 		maximum = numpy.max(image)
 		minimum = numpy.min(image)
-		print "Mean:", mean, " Median:", median, " Std (clipped 3sigma):", std
-		print "Minimum:", minimum, " Maximum:", maximum
+		debug.write("Mean: %f,  Median: %f,  Std (clipped 3sigma):%f"%(mean, median, std) , 2)
+		debug.write("Minimum: %f,  Maximum: %f"%(minimum, maximum), 2)
 		threshold = median + (std * 2.)
 		segm_img = detect_sources(image, threshold, npixels=5)
 		mask = segm_img.astype(numpy.bool)
 		mean, median, std = sigma_clipped_stats(image, sigma=3.0, mask=mask) 
-		print "After source masking"
-		print "Mean:", mean, " Median:", median, " Std (clipped 3sigma):", std
+		debug.write("After source masking", 2)
+		debug.write("Mean: %f,  Median: %f,  Std (clipped 3sigma): %f"%(mean, median, std), 2)
 		selem = numpy.ones((5, 5))    # dilate using a 5x5 box
 		mask2 = binary_dilation(mask, selem)
 		mean, median, std = sigma_clipped_stats(image, sigma=3.0, mask=mask2)
-		print "After dilation"
-		print "Mean:", mean, " Median:", median, " Std (clipped 3sigma):", std
-		bkg = Background(image, (25, 25), filter_shape=(3, 3), method='median')
-		bgImage = matplotlib.pyplot.figure(figsize=(10, 10))
-		matplotlib.pyplot.imshow(bkg.background, origin='lower', cmap='Greys_r')
-		matplotlib.pyplot.show(block=False)
-		image = image - bkg.background
+		debug.write("After dilation", 2)
+		debug.write("Mean: %f,  Median: %f,  Std (clipped 3sigma): %f"%(mean, median, std), 2)
+		
+		# Check the window image for any areas that should be masked...
+		lowerLimitBkg = median - std*5.
+		debug.write("5 sigma below the median is the lowerLimitBkg for the mask: %f"%(lowerLimitBkg), 2)
+		mask = (image < lowerLimitBkg)
+		maskBitmap = numpy.zeros(numpy.shape(mask))
+		maskBitmap = 255 * (mask) 
+		if (arg.keyimages):
+			maskImage = matplotlib.pyplot.figure(figsize=(10, 10))
+			matplotlib.pyplot.title("Mask for window:%d"%(index))
+			matplotlib.pyplot.imshow(maskBitmap, origin='lower', cmap='Greys_r')
+			matplotlib.pyplot.show(block=False)
+		bkg = Background(image, (10, 10), filter_shape=(3, 3), method='median', mask=mask)
+		background = bkg.background
+		if (arg.keyimages):
+			bgImage = matplotlib.pyplot.figure(figsize=(10, 10))
+			matplotlib.pyplot.title("Fitted background, window:%d"%(index))
+			matplotlib.pyplot.imshow(background, origin='lower', cmap='Greys_r')
+			matplotlib.pyplot.show(block=False)
+		image = image - background
 		bkg_sigma = 1.48 * mad(image)
 		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
-		print sources
+		
 		w.setSourcesAvoidBorders(sources)
 		w.BGSubtractedImage = image	
 		
@@ -425,7 +435,7 @@ if __name__ == "__main__":
 		positions = zip(sources['xcentroid'], sources['ycentroid'], sources['flux'])
 		new_positions = [(x + xll, y + yll, flux) for (x, y, flux) in positions]
 		allSources+=new_positions
-
+		
 	# Get the final stacked image
 	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	for w in allWindows:
@@ -439,64 +449,39 @@ if __name__ == "__main__":
 		boostedFullFrame[yll:yll+ysize, xll:xll+xsize] = boostedFullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImageData
 
 	
-	tempSources = [ (x, y) for (x, y, flux) in allSources]
-	allSources = tempSources	
-	finalFigure = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Final stacked image")
-	matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
-	for s in allSources:
-		(x, y) = s
-		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 5, color='blue', fill=False, linewidth=1.0))
-	matplotlib.pyplot.gca().invert_yaxis()
-	matplotlib.pyplot.draw()
-	matplotlib.pyplot.show()
+	#tempSources = [ (x, y) for (x, y, flux) in allSources]
+	#allSources = tempSources	
+	allSources = sorted(allSources, key=lambda object: object[2], reverse = True)
+	if (arg.keyimages):
+		finalFigure = matplotlib.pyplot.figure(figsize=(10, 10))
+		matplotlib.pyplot.title("Final stacked image")
+		matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
+		for s in allSources:
+			(x, y) = s[0], s[1]
+			matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 5, color='blue', fill=False, linewidth=1.0))
+		matplotlib.pyplot.gca().invert_yaxis()
+		matplotlib.pyplot.draw()
+		matplotlib.pyplot.show()
 	
-	# Get the source map
-	smoothedSourceMap = sourceMap.getSmoothMap()
+	# Output the source list for debug purposes
+	if (arg.debuglevel>1):
+		sourceString = "Sources"
+		for s in allSources:
+			sourceString+= "\n(%3.2f, %3.2f) %.2f"%(s[0], s[1], s[2])
+		debug.write(sourceString, 2)
 	
-	# Now use this source map to generate a set of apertures
-	bkg_sigma = 1.48 * mad(smoothedSourceMap)
-	print "sourceMap median:", numpy.median(smoothedSourceMap)
-	print "sourceMap mean:", numpy.mean(smoothedSourceMap)
-	print "sourceMap max:", numpy.max(smoothedSourceMap)
-	threshold = frameRange/100.
-	print "threshold:", threshold
-	apertureSources = daofind(smoothedSourceMap, fwhm=4.0, threshold=threshold)   
-	
-	# Draw the source map 
-	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Source map")
-	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
-	for s in apertureSources:
-		x, y = s['xcentroid'], s['ycentroid']
-		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
-	matplotlib.pyplot.gca().invert_yaxis()			
-	#matplotlib.pyplot.show(block=False)
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap.png"
-	matplotlib.pyplot.savefig(outputFilename)
-
-	# Draw the source map with no apertures
-	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Source map")
-	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
-	matplotlib.pyplot.gca().invert_yaxis()
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap_clean.png"
-	matplotlib.pyplot.savefig(outputFilename)
-
-
 	# Write the XYLS FITS file
 	if (arg.xyls):
 		IDs = []
 		x_values = []
 		y_values = []
 		fluxes = []
-		sortedObjects = sorted(apertureSources, key= lambda p:p['flux'], reverse=True)
 		
-		for num, s in enumerate(sortedObjects):
+		for num, s in enumerate(allSources):
 			IDs.append(num)
-			x_values.append(s['xcentroid'])
-			y_values.append(s['ycentroid'])
-			fluxes.append(s['flux'])
+			x_values.append(s[0])
+			y_values.append(s[1])
+			fluxes.append(s[2])
 			
 
 		FITSFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sources.xyls"
@@ -506,7 +491,8 @@ if __name__ == "__main__":
 		col3 = astropy.io.fits.Column(name='Y', format='E', array=y_values)
 		col4 = astropy.io.fits.Column(name='FLUX', format='E', array=fluxes)
 		cols = astropy.io.fits.ColDefs([col1, col2, col3, col4])	
-		tbhdu =astropy.io.fits.new_table(cols)
+		#tbhdu =astropy.io.fits.new_table(cols)
+		tbhdu =astropy.io.fits.TableHDU.from_columns(cols)
 		
 		prihdr = astropy.io.fits.Header()
 		prihdr['TARGET'] = runInfo.target
@@ -526,7 +512,7 @@ if __name__ == "__main__":
 	matplotlib.pyplot.title("Stacked image")
 	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	for w in allWindows:
-		boostedImage = ultracamutils.percentiles(w.stackedData, 40, 99.8)
+		boostedImage = ultracamutils.percentiles(w.BGSubtractedImage, 10, 99.5)
 		xll = w.xll/w.xbin - xmin
 		xsize = w.nx
 		yll = w.yll/w.ybin - ymin
@@ -535,7 +521,7 @@ if __name__ == "__main__":
 	
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
 	
-	# Write the image with PIL library, rather than matplotlib
+	# Write the image data with PIL library, rather than matplotlib
 	imgData = numpy.rot90(fullFrame, 3)
 	imgSize = numpy.shape(imgData)
 	imgLength = imgSize[0] * imgSize[1]
@@ -563,7 +549,7 @@ if __name__ == "__main__":
 	FITSFilename =  ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_stacked.fits"
 	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	for w in allWindows:
-		imageData = w.stackedData
+		imageData = w.BGSubtractedImage
 		xll = w.xll/w.xbin - xmin
 		xsize = w.nx
 		yll = w.yll/w.ybin - ymin
@@ -595,6 +581,44 @@ if __name__ == "__main__":
 	hdulist = astropy.io.fits.HDUList([hdu])
 	hdulist.writeto(FITSFilename, clobber=True)
 	
+
+		
+	sys.exit()
+	
+	
+	""" Old code
+	# Get the source map
+	smoothedSourceMap = sourceMap.getSmoothMap()
+	
+	# Now use this source map to generate a set of apertures
+	bkg_sigma = 1.48 * mad(smoothedSourceMap)
+	print "sourceMap median:", numpy.median(smoothedSourceMap)
+	print "sourceMap mean:", numpy.mean(smoothedSourceMap)
+	print "sourceMap max:", numpy.max(smoothedSourceMap)
+	threshold = frameRange/100.
+	print "threshold:", threshold
+	apertureSources = daofind(smoothedSourceMap, fwhm=4.0, threshold=threshold)   
+	
+	# Draw the source map 
+	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
+	matplotlib.pyplot.title("Source map")
+	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
+	for s in apertureSources:
+		x, y = s['xcentroid'], s['ycentroid']
+		matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='green', fill=False, linewidth=1.0))
+	matplotlib.pyplot.gca().invert_yaxis()			
+	#matplotlib.pyplot.show(block=False)
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap.png"
+	matplotlib.pyplot.savefig(outputFilename)
+
+	# Draw the source map with no apertures
+	sourceMapImage = matplotlib.pyplot.figure(figsize=(10, 10))
+	matplotlib.pyplot.title("Source map")
+	matplotlib.pyplot.imshow(smoothedSourceMap, cmap='hot')
+	matplotlib.pyplot.gca().invert_yaxis()
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sourcemap_clean.png"
+	matplotlib.pyplot.savefig(outputFilename)
+	
 	# Now write out the aperture data
 	
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_apertures.json"
@@ -612,5 +636,4 @@ if __name__ == "__main__":
 		apertureList.append(aperture)
 	json.dump(apertureList, outputFile)
 	outputFile.close()
-		
-
+	"""

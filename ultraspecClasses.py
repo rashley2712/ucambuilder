@@ -135,6 +135,11 @@ class runInfo:
 		self.comment = ""
 		self.ra = 0
 		self.dec = 0
+		self.target = "unknown"
+		self.expose = 0
+		self.num = 0
+		self.comment = ""
+		
 		
 	def loadFromJSON(self, JSONFilename):
 		JSONfile = open(JSONFilename, "r")
@@ -157,10 +162,13 @@ class runInfo:
 				self.target = object['target']
 				self.num = object['num']
 				self.expose = object['expose']
-				print object
+				#print object
 				return True 
 		return False
             
+	def __str__(self):
+		description = "%s/%s Target: %s  Comment:%s"%(self.runDate, self.runID, self.target, self.comment)
+		return description
 
 	def loadFromXML(self, rawDataDirectory):
 		""" This method is called upon if the loadFromJSON method fails to return any data
