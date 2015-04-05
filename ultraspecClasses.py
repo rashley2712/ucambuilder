@@ -4,6 +4,40 @@ from scipy.ndimage.filters import gaussian_filter
 import ultracamutils
 from astropy.table import Table
 
+
+class sourceList:
+	""" This is a class of a list of sources
+	"""
+	
+	def __init__(self):
+		self.sources = []
+
+	def addSourceByPosition(self, position):
+		newSource = source(position)
+		self.sources.append(newSource)
+
+	def addSource(self, source):
+		self.sources.append(source)
+	
+
+class source:
+	""" This is a definition of a source 
+	"""
+	def __init__(self, id, position):
+		self.id = id
+		self.position = position
+		
+	def setDAOPhotData(self, xcentroid, ycentroid, sharpness, roundness1, roundness2, npix, sky, peak, flux, mag):
+		self.position = (xcentroid, ycentroid)
+		self.sharpness = sharpness
+		self.roundness = (roundness1, roundness2)
+		self.npix = npix
+		self.sky = sky
+		self.peak = peak
+		self.flux = flux
+		self.mag = mag
+
+
 class aperture:
 	""" This is an aperture instance 
 	"""

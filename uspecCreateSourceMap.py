@@ -425,13 +425,18 @@ if __name__ == "__main__":
 			matplotlib.pyplot.imshow(background, origin='lower', cmap='Greys_r')
 			matplotlib.pyplot.show(block=False)
 		image = image - background
+		
+		# Final stage source detection
 		bkg_sigma = 1.48 * mad(image)
-		sources = daofind(image, fwhm=4.0, threshold=3*bkg_sigma)   
+		sigmaThreshold = float(config.SIGMA_THRESHOLD)* float(bkg_sigma)
+		debug.write("Threshold for source detection is %f sigma or %f counts."%(float(config.SIGMA_THRESHOLD), sigmaThreshold), 2)
+		sources = daofind(image, fwhm=4.0, threshold=sigmaThreshold)   
 		
 		w.setSourcesAvoidBorders(sources)
 		w.BGSubtractedImage = image	
 		
 		sources = w.getSources()
+		print sources
 		positions = zip(sources['xcentroid'], sources['ycentroid'], sources['flux'])
 		new_positions = [(x + xll, y + yll, flux) for (x, y, flux) in positions]
 		allSources+=new_positions
@@ -520,21 +525,17 @@ if __name__ == "__main__":
 		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
 	
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
-	print "About to use the PIL library"
 	# Write the image data with PIL library, rather than matplotlib
 	imgData = numpy.rot90(fullFrame, 3)
 	imgSize = numpy.shape(imgData)
 	imgLength = imgSize[0] * imgSize[1]
 	testData = numpy.reshape(imgData, imgLength, order="F")
 	img = Image.new("L", imgSize)
-	print "imgSize:", imgSize
 	palette = []
 	for i in range(256):
 		palette.extend((i, i, i)) # grey scale
 		img.putpalette(palette)
-	print "Before img.putdata"
 	img.putdata(testData)
-	print "after putdata"
 	debug.write("Writing PNG file: " + outputFilename, level = 2) 
 	img.save(outputFilename, "PNG", clobber=True)
 	
