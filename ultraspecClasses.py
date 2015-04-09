@@ -17,18 +17,51 @@ class sourceList:
 		self.sources.append(newSource)
 
 	def addSource(self, source):
+		if (source.id==0):
+			# Generate a unique id for this new source
+			newID = ultracamutils.getUniqueID(self.sources)
+			source.id = newID
 		self.sources.append(source)
+		
+	def getSources(self):
+		return self.sources
+		
+	def writeToCSV(self, filename):
+		outFile = file(filename, 'w')
+		if len(self.sources)<1: return
+		
+		headerLine = "ID, window, x, y, abs_x, abs_y, flux, sharpness\n"
+		outFile.write(headerLine)
+		for s in self.sources:
+			outLine = ""
+			outLine+= str(s.id) + ", "  + str(s.windowIndex) + ", "
+			outLine+= str(s.position[0]) + ", " + str(s.position[1]) + ", "
+			outLine+= str(s.position[0] + s.xll) + ", " + str(s.position[1] + s.yll) + ", "
+			outLine+= str(s.flux) + ", "
+			outLine+= str(s.sharpness)
+			outLine+= "\n"
+			outFile.write(outLine)
+		outFile.close()
+		
+	def sortByFlux(self):
+		sortedSources = sorted(self.sources, key=lambda object: object.flux, reverse = True)
+		for index, s in enumerate(sortedSources):
+			s.id = index
+		self.sources = sortedSources
 	
 
 class source:
 	""" This is a definition of a source 
 	"""
-	def __init__(self, id, position):
+	def __init__(self, id, position, windowIndex):
 		self.id = id
 		self.position = position
+		self.windowIndex = windowIndex
+		self.binningFactor = 0
+		self.xll = 0
+		self.yll = 0 
 		
-	def setDAOPhotData(self, xcentroid, ycentroid, sharpness, roundness1, roundness2, npix, sky, peak, flux, mag):
-		self.position = (xcentroid, ycentroid)
+	def setDAOPhotData(self, sharpness, roundness1, roundness2, npix, sky, peak, flux, mag):
 		self.sharpness = sharpness
 		self.roundness = (roundness1, roundness2)
 		self.npix = npix
@@ -36,7 +69,14 @@ class source:
 		self.peak = peak
 		self.flux = flux
 		self.mag = mag
+		
+	def setOffsets(self, offset):
+		self.xll, self.yll = offset
 
+	def __str__(self):
+		outString = ""
+		outString+= "ID: " + str(self.id) + " position (%3.2f, %3.2F)"%(self.position) + " Flux: %f"%(self.flux)
+		return outString 
 
 class aperture:
 	""" This is an aperture instance 

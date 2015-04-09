@@ -385,6 +385,7 @@ if __name__ == "__main__":
 	""" We have run through all of the images now. """
 	
 	allSources = []
+	sourceList = ultraspecClasses.sourceList()
 	for index, w in enumerate(allWindows):
 		xll = w.xll/w.xbin - xmin
 		yll = w.yll/w.ybin - ymin
@@ -415,14 +416,14 @@ if __name__ == "__main__":
 		if (arg.keyimages):
 			maskImage = matplotlib.pyplot.figure(figsize=(10, 10))
 			matplotlib.pyplot.title("Mask for window:%d"%(index))
-			matplotlib.pyplot.imshow(maskBitmap, origin='lower', cmap='Greys_r')
+			matplotlib.pyplot.imshow(maskBitmap, origin='lower', cmap='Greys_r',  interpolation = 'nearest')
 			matplotlib.pyplot.show(block=False)
 		bkg = Background(image, (10, 10), filter_shape=(3, 3), method='median', mask=mask)
 		background = bkg.background
 		if (arg.keyimages):
 			bgImage = matplotlib.pyplot.figure(figsize=(10, 10))
 			matplotlib.pyplot.title("Fitted background, window:%d"%(index))
-			matplotlib.pyplot.imshow(background, origin='lower', cmap='Greys_r')
+			matplotlib.pyplot.imshow(background, origin='lower', cmap='Greys_r',  interpolation = 'nearest')
 			matplotlib.pyplot.show(block=False)
 		image = image - background
 		
@@ -436,7 +437,12 @@ if __name__ == "__main__":
 		w.BGSubtractedImage = image	
 		
 		sources = w.getSources()
-		print sources
+		for s in sources:
+			position = (s['xcentroid'], s['ycentroid'])
+			sourceObject = ultraspecClasses.source(0, position, index)
+			sourceObject.setDAOPhotData(s['sharpness'], s['roundness1'], s['roundness2'], s['npix'], s['sky'], s['peak'], s['flux'], s['mag'])
+			sourceObject.setOffsets((xll, yll))
+			sourceList.addSource(sourceObject)
 		positions = zip(sources['xcentroid'], sources['ycentroid'], sources['flux'])
 		new_positions = [(x + xll, y + yll, flux) for (x, y, flux) in positions]
 		allSources+=new_positions
@@ -474,6 +480,12 @@ if __name__ == "__main__":
 		for s in allSources:
 			sourceString+= "\n(%3.2f, %3.2f) %.2f"%(s[0], s[1], s[2])
 		debug.write(sourceString, 2)
+		
+	
+	sourceList.sortByFlux()
+	sourcesFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sources.csv"
+	debug.write("Writing source list to CSV file: " + sourcesFilename, 2)
+	sourceList.writeToCSV(sourcesFilename)
 	
 	# Write the XYLS FITS file
 	if (arg.xyls):
