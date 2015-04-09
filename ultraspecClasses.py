@@ -43,6 +43,38 @@ class sourceList:
 			outFile.write(outLine)
 		outFile.close()
 		
+	def getNumSources(self):
+		return len(self.sources)
+		
+	def loadFromCSV(self, filename):
+		try:
+			inFile = file(filename, 'r')
+		except IOError:
+			return False
+			
+		
+		for index, line in enumerate(inFile):
+			#print line
+			if index==0: continue
+			valueList = line.split(",")
+			id = int(valueList[0])
+			window = int(valueList[1])
+			position = ( float(valueList[2]), float(valueList[3]))
+			abs_position = ( float(valueList[4]), float(valueList[5]))
+			sourceObject = source(id, position, window)
+			offset = numpy.subtract(abs_position, position)
+			sourceObject.setOffsets(offset)
+			sourceObject.abs_position = abs_position
+			flux = float(valueList[6])
+			sharpness = float(valueList[7])
+			sourceObject.flux = flux
+			sourceObject.sharpness = sharpness
+			self.sources.append(sourceObject)
+			
+		return True
+			
+		
+		
 	def sortByFlux(self):
 		sortedSources = sorted(self.sources, key=lambda object: object.flux, reverse = True)
 		for index, s in enumerate(sortedSources):
