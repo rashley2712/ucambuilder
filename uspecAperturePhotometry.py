@@ -31,6 +31,8 @@ from photutils.detection import detect_sources
 from scipy.ndimage import binary_dilation
 from photutils.background import Background
 from photutils.morphology import (centroid_com, centroid_1dg, centroid_2dg)
+from photutils import CircularAperture
+from photutils import CircularAnnulus
 import photutils
 import ppgplot
 
@@ -197,22 +199,49 @@ if __name__ == "__main__":
 			image = w._data		
 			allWindows[windowIndex].setData(image)
 		
-		"""margins = 10
+		margins = 10
 		for index, s in enumerate(sourceList.getSources()):
-			print s
+			#print s
 			if index>5: break
-			center = s.position
-			xcenterInt = int(s.position[0])
-			xcenterOffset = s.position[0] - margins
-			ycenterInt = int(s.position[1])
-			ycenterOffset = s.position[1] - margins
-			window = s.windowIndex
-			zoomImageData = allWindows[window].data[ycenterInt-margins:ycenterInt+margins, xcenterInt-margins:xcenterInt+margins]
+			center = s.latestPosition
+			xcenterInt = int(center[0])
+			xcenterOffset = center[0] - margins
+			ycenterInt = int(center[1])
+			ycenterOffset = center[1] - margins
+			if (ycenterOffset<0) or (xcenterOffset<0): continue
+			window = allWindows[s.windowIndex]
+			zoomImageData = window.data[ycenterInt-margins:ycenterInt+margins, xcenterInt-margins:xcenterInt+margins]
 			(xcen, ycen) = photutils.morphology.centroid_2dg(zoomImageData, error=None, mask=None)
 			xcen+= xcenterOffset
 			ycen+= ycenterOffset
-			print (xcen, ycen)"""
+			s.setLatestPosition(trueFrameNumber, (xcen, ycen))
+			#print (xcen, ycen)
+			apertures = CircularAperture((xcen, ycen), r=5.)
+			annulus_apertures = CircularAnnulus((xcen, ycen), r_in=10., r_out=15.)
+			data = window.data
 			
+			innerFluxes = aperture_photometry(data, apertures)
+			outerFluxes = aperture_photometry(data, annulus_apertures)
+			
+			innerFlux = innerFluxes[0]['aperture_sum']
+			outerFlux = outerFluxes[0]['aperture_sum']
+			
+			bkg_mean = outerFlux / annulus_apertures.area()
+			bkg_sum = bkg_mean * apertures.area()
+			final_sum = innerFlux - bkg_sum
+			#print "Sky subtracted flux:", final_sum
+			s.addFluxMeasurement(trueFrameNumber, final_sum)
+			
+		"""for index, w in enumerate(allWindows):
+			print "Window number:", index
+			sourcesInWindow = sourceList.getSourcesByWindow(index)
+			data = w.data
+			positions = []
+			for s in sourcesInWindow:
+				positions.append(s.latestPosition)
+			apertures = CircularAperture(positions, r=3.)
+			phot_table = aperture_photometry(data, apertures)
+			print phot_table"""
 		
 		if arg.preview: 
 			fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
@@ -242,16 +271,13 @@ if __name__ == "__main__":
 			ppgplot.pgsci(2)
 			for index, s in enumerate(sourceList.getSources()):
 				if index>5: break
-				center = s.position
-				xcenterInt = int(s.position[0])
-				xcenterOffset = s.position[0] - margins
-				ycenterInt = int(s.position[1])
-				ycenterOffset = s.position[1] - margins
-				window = s.windowIndex
-				zoomImageData = allWindows[window].data[ycenterInt-margins:ycenterInt+margins, xcenterInt-margins:xcenterInt+margins]
-				(xcen, ycen) = photutils.morphology.centroid_2dg(zoomImageData, error=None, mask=None)
-				xcen+= xcenterOffset
-				ycen+= ycenterOffset
+				center = s.latestPosition
+				window = allWindows[s.windowIndex]
+				xll = window.xll/window.xbin - xmin
+				yll = window.yll/window.ybin - ymin
+				xcen= center[0] + xll
+				ycen= center[1] + yll
+				#print xll, yll, center, xcen, ycen
 				ppgplot.pgcirc(xcen, ycen, 5)
 			
 			
@@ -262,6 +288,21 @@ if __name__ == "__main__":
 	
 	if(arg.preview):
 		ppgplot.pgclos()
+	
+	
+	s = sourceList.getSources()[0]
+	print s
+	print s.fluxMeasurements
+	
+	matplotlib.pyplot.figure(figsize=(12, 8))
+	x_values = []
+	y_values = []
+	for m in s.fluxMeasurements:
+		x_values.append(m['frameNumber'])
+		y_values.append(m['flux'])
+	matplotlib.pyplot.scatter(x_values, y_values, color='r')
+	
+	matplotlib.pyplot.show(block = True)
 	
 	sys.exit()
 	

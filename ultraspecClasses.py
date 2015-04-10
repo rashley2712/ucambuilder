@@ -26,6 +26,13 @@ class sourceList:
 	def getSources(self):
 		return self.sources
 		
+	def getSourcesByWindow(self, index):
+		sourcesInWindow = []
+		for s in self.sources:
+			if s.windowIndex == index:
+				sourcesInWindow.append(s)
+		return sourcesInWindow
+		
 	def writeToCSV(self, filename):
 		outFile = file(filename, 'w')
 		if len(self.sources)<1: return
@@ -59,10 +66,11 @@ class sourceList:
 			valueList = line.split(",")
 			id = int(valueList[0])
 			window = int(valueList[1])
-			position = ( float(valueList[2]), float(valueList[3]))
-			abs_position = ( float(valueList[4]), float(valueList[5]))
+			position = ( float(valueList[2]), float(valueList[3]) )
+			abs_position = ( float(valueList[4]), float(valueList[5]) )
 			sourceObject = source(id, position, window)
 			offset = numpy.subtract(abs_position, position)
+			sourceObject.latestPosition = position
 			sourceObject.setOffsets(offset)
 			sourceObject.abs_position = abs_position
 			flux = float(valueList[6])
@@ -92,6 +100,10 @@ class source:
 		self.binningFactor = 0
 		self.xll = 0
 		self.yll = 0 
+		self.positionLog = []
+		self.latestPosition = (0, 0)
+		self.fluxMeasurements = []
+		self.latestFlux = 0
 		
 	def setDAOPhotData(self, sharpness, roundness1, roundness2, npix, sky, peak, flux, mag):
 		self.sharpness = sharpness
@@ -104,6 +116,20 @@ class source:
 		
 	def setOffsets(self, offset):
 		self.xll, self.yll = offset
+		
+	def setLatestPosition(self, frameNumber, newPosition):
+		self.latestPosition = newPosition
+		logEntry = {}
+		logEntry['frameNumber'] = frameNumber
+		logEntry['position'] = newPosition
+		self.positionLog.append(logEntry)
+		
+	def addFluxMeasurement(self, frameNumber, flux):
+		self.latestFlux = flux
+		logEntry = {}
+		logEntry['frameNumber'] = frameNumber
+		logEntry['flux'] = flux
+		self.fluxMeasurements.append(logEntry)
 
 	def __str__(self):
 		outString = ""
