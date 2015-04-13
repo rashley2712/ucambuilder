@@ -74,7 +74,9 @@ if __name__ == "__main__":
 	
 	config = ultracamutils.readConfigFile(arg.configfile)
 	
-	
+	innerSkyRadius = float(config.INNER_SKY)
+	outerSkyRadius = float(config.OUTER_SKY)
+	apertureRadius = float(config.APERTURE_RADIUS)
 	applyShift = True
 	if (arg.noshift):
 		applyShift = False
@@ -169,13 +171,22 @@ if __name__ == "__main__":
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
 	
+	lightcurveView = ppgplot.pgopen('/xs')
+	ppgplot.pgenv(startFrame, startFrame + frameRange, 0, 100, 0, 0)
+	ppgplot.pgask(False)
+	
 	if (arg.preview):		
-		ppgplot.pgopen('/xs')
+		bitmapView = ppgplot.pgopen('/xs')
 		ppgplot.pgenv(0.,fullFramexsize,0.,fullFrameysize, 1, 0)
 		pgPlotTransform = [0, 1, 0, 0, 0, 1]
 		ppgplot.pgsfs(2)
+	
 					
-			
+	xValues = []
+	yValues = []	
+	yAxisMax= 100	
+	referenceApertures = ultraspecClasses.referenceApertures()
+	referenceApertures.initFromSourceList(sourceList)
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()
@@ -199,51 +210,9 @@ if __name__ == "__main__":
 			image = w._data		
 			allWindows[windowIndex].setData(image)
 		
-		margins = 10
-		for index, s in enumerate(sourceList.getSources()):
-			#print s
-			if index>5: break
-			center = s.latestPosition
-			xcenterInt = int(center[0])
-			xcenterOffset = center[0] - margins
-			ycenterInt = int(center[1])
-			ycenterOffset = center[1] - margins
-			if (ycenterOffset<0) or (xcenterOffset<0): continue
-			window = allWindows[s.windowIndex]
-			zoomImageData = window.data[ycenterInt-margins:ycenterInt+margins, xcenterInt-margins:xcenterInt+margins]
-			(xcen, ycen) = photutils.morphology.centroid_2dg(zoomImageData, error=None, mask=None)
-			xcen+= xcenterOffset
-			ycen+= ycenterOffset
-			s.setLatestPosition(trueFrameNumber, (xcen, ycen))
-			#print (xcen, ycen)
-			apertures = CircularAperture((xcen, ycen), r=5.)
-			annulus_apertures = CircularAnnulus((xcen, ycen), r_in=10., r_out=15.)
-			data = window.data
-			
-			innerFluxes = aperture_photometry(data, apertures)
-			outerFluxes = aperture_photometry(data, annulus_apertures)
-			
-			innerFlux = innerFluxes[0]['aperture_sum']
-			outerFlux = outerFluxes[0]['aperture_sum']
-			
-			bkg_mean = outerFlux / annulus_apertures.area()
-			bkg_sum = bkg_mean * apertures.area()
-			final_sum = innerFlux - bkg_sum
-			#print "Sky subtracted flux:", final_sum
-			s.addFluxMeasurement(trueFrameNumber, final_sum)
-			
-		"""for index, w in enumerate(allWindows):
-			print "Window number:", index
-			sourcesInWindow = sourceList.getSourcesByWindow(index)
-			data = w.data
-			positions = []
-			for s in sourcesInWindow:
-				positions.append(s.latestPosition)
-			apertures = CircularAperture(positions, r=3.)
-			phot_table = aperture_photometry(data, apertures)
-			print phot_table"""
 		
-		if arg.preview: 
+		if arg.preview:
+			ppgplot.pgslct(bitmapView) 
 			fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 			for w in allWindows:
 				if (arg.stack):
@@ -259,16 +228,88 @@ if __name__ == "__main__":
 			dimensions = numpy.shape(fullFrame)
 			rows = dimensions[0]
 			cols = dimensions[1]
-			
+
+			# Draw the grayscale bitmap
 			ppgplot.pggray(fullFrame, 0, cols-1 , 0, rows-1 , 0, 255, pgPlotTransform)
 	
+			# Draw the full reference aperture list
 			ppgplot.pgsci(3)
 			for s in sourceList.getSources():
 				(x, y) = s.abs_position
 				ppgplot.pgcirc(x, y, 10)
-				
-			margins = 10
+		
+		margins = 10
+		
+		if arg.preview: 
+			ppgplot.pgslct(bitmapView)
 			ppgplot.pgsci(2)
+			
+		plotColour = [1, 2, 3, 4, 5, 6]
+		for index, s in enumerate(referenceApertures.getSources()):
+			window = allWindows[s.windowIndex]
+			center = s.latestPosition
+			xcenterInt = int(center[0])
+			xcenterOffset = center[0] - margins
+			#xcenterOffset = xcenterInt - margins
+			
+			ycenterInt = int(center[1])
+			ycenterOffset = center[1] - margins
+			#ycenterOffset = ycenterInt - margins
+			
+			if (ycenterOffset<0) or (xcenterOffset<0): continue
+			zoomImageData = window.data[ycenterInt-margins:ycenterInt+margins, xcenterInt-margins:xcenterInt+margins]
+			(xcen, ycen) = photutils.morphology.centroid_2dg(zoomImageData, error=None, mask=None)
+			
+			xcen+= xcenterOffset
+			ycen+= ycenterOffset
+			s.setLatestPosition(trueFrameNumber, (xcen, ycen))
+			apertures = CircularAperture((xcen, ycen), r=apertureRadius)
+			annulus_apertures = CircularAnnulus((xcen, ycen), r_in=innerSkyRadius, r_out=outerSkyRadius)
+			
+			# Draw the re-positioned apertures
+			xll = window.xll/window.xbin - xmin
+			yll = window.yll/window.ybin - ymin
+			if arg.preview:
+				ppgplot.pgslct(bitmapView)
+				plotx= xcen + xll
+				ploty= ycen + yll
+				#print xll, yll, center, xcen, ycen
+				ppgplot.pgcirc(plotx, ploty, apertureRadius)
+				ppgplot.pgcirc(plotx, ploty, innerSkyRadius)
+				ppgplot.pgcirc(plotx, ploty, outerSkyRadius)
+				
+			
+			data = window.data
+			
+			innerFluxes = aperture_photometry(data, apertures)
+			outerFluxes = aperture_photometry(data, annulus_apertures)
+			
+			innerFlux = innerFluxes[0]['aperture_sum']
+			outerFlux = outerFluxes[0]['aperture_sum']
+			
+			bkg_mean = outerFlux / annulus_apertures.area()
+			bkg_sum = bkg_mean * apertures.area()
+			final_sum = innerFlux - bkg_sum
+			#print "Sky subtracted flux:", final_sum
+			s.addFluxMeasurement(trueFrameNumber, final_sum)
+			
+			xValues.append(trueFrameNumber)
+			yValues.append(final_sum)
+			yMin = 0
+			yMax = numpy.max(yValues)
+			shortXArray = [trueFrameNumber]
+			shortYArray = [final_sum]
+			if arg.preview: ppgplot.pgslct(lightcurveView)
+			if yMax > yAxisMax:
+				yAxisMax = yMax * 1.1
+				ppgplot.pgenv(startFrame, startFrame + frameRange, yMin, yAxisMax, 0, 0)
+				ppgplot.pgpt(xValues, yValues, 1)
+				
+			ppgplot.pgsci(plotColour[index])	
+			ppgplot.pgpt(shortXArray, shortYArray, 1)
+		
+	
+			"""ppgplot.pgsci(2)
 			for index, s in enumerate(sourceList.getSources()):
 				if index>5: break
 				center = s.latestPosition
@@ -278,7 +319,7 @@ if __name__ == "__main__":
 				xcen= center[0] + xll
 				ycen= center[1] + yll
 				#print xll, yll, center, xcen, ycen
-				ppgplot.pgcirc(xcen, ycen, 5)
+				ppgplot.pgcirc(xcen, ycen, 5)"""
 			
 			
 		if arg.sleep!=0:
@@ -286,23 +327,14 @@ if __name__ == "__main__":
 	sys.stdout.write("\rProcessed %d frames      \n"%frameRange)
 	sys.stdout.flush()
 	
-	if(arg.preview):
+	if arg.preview:
+		ppgplot.pgslct(bitmapView)
 		ppgplot.pgclos()
+	ppgplot.pgslct(lightcurveView)
+	ppgplot.pgclos()
 	
+	referenceApertures.getFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
 	
-	s = sourceList.getSources()[0]
-	print s
-	print s.fluxMeasurements
-	
-	matplotlib.pyplot.figure(figsize=(12, 8))
-	x_values = []
-	y_values = []
-	for m in s.fluxMeasurements:
-		x_values.append(m['frameNumber'])
-		y_values.append(m['flux'])
-	matplotlib.pyplot.scatter(x_values, y_values, color='r')
-	
-	matplotlib.pyplot.show(block = True)
 	
 	sys.exit()
 	

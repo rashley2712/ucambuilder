@@ -76,12 +76,21 @@ class sourceList:
 			flux = float(valueList[6])
 			sharpness = float(valueList[7])
 			sourceObject.flux = flux
+			sourceObject.latestFlux = flux
 			sourceObject.sharpness = sharpness
 			self.sources.append(sourceObject)
 			
 		return True
-			
 		
+	def keepTopSourcesOnly(self, n):
+		self.sortByFlux()
+		maxSources = n
+		shortenedSourceList = []
+		for index, s in enumerate(self.sources):
+			if index>=maxSources: break
+			self.shortenedSourceList.append(s)	
+		print "Reduced number of sources is:", len(self.sources)
+
 		
 	def sortByFlux(self):
 		sortedSources = sorted(self.sources, key=lambda object: object.flux, reverse = True)
@@ -89,6 +98,35 @@ class sourceList:
 			s.id = index
 		self.sources = sortedSources
 	
+class referenceApertures:
+	""" This class contains a list of sources that are the reference apertures for the run....
+	"""
+	def __init__(self):
+		sources = []
+		
+	def addSource(self, source):
+		self.sources.append(source)
+		
+	def getSources(self):
+		return self.sources
+		
+	def initFromSourceList(self, sourceList):
+		self.sources = []
+		sourceList.sortByFlux()
+		topPercent = 40.
+		maxApertures = 4
+		
+		for index, s in enumerate(sourceList.sources):
+			if index>=maxApertures: break
+			self.sources.append(s)
+		#print "Number of reference apertures is:", len(self.sources)
+		
+	def getFrameCoverage(self, nFrames):
+		for s in self.sources:
+			numFrames = len(s.fluxMeasurements)
+			coverage = float(numFrames) / float(nFrames) * 100.
+			s.coverage = coverage
+			print s, coverage
 
 class source:
 	""" This is a definition of a source 
@@ -133,7 +171,7 @@ class source:
 
 	def __str__(self):
 		outString = ""
-		outString+= "ID: " + str(self.id) + " position (%3.2f, %3.2F)"%(self.position) + " Flux: %f"%(self.flux)
+		outString+= "ID: " + str(self.id) + " W[%d]"%self.windowIndex + " position (%3.2f, %3.2F)"%(self.latestPosition) + " Flux: %f"%(self.latestFlux)
 		return outString 
 
 class aperture:
