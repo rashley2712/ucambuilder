@@ -24,6 +24,20 @@ def readConfigFile(filename):
     configfile.close()
     return configuration
     
+def createConfigFile():
+	configuration = classes.configObject()
+	
+	outputFile = open("ucambuilder_auto.conf", 'w')
+	lineString = "# This file has been automatically genereated by 'ultracamutils.py'.\n"
+	outputFile.write(lineString)
+	attributes = [a for a in dir(configuration) if not a.startswith('__') and not callable(getattr(configuration,a))]
+	print attributes
+	for key in attributes:
+		lineString = str(key) + "\t" + str(configuration[key]) + "\n"
+		outputFile.write(lineString)
+	outputFile.close()
+	
+    
 def getRunInfo(filename, runIdent):
 	""" Loads some run info from the JSON file created by Tom Marsh. Places it into an object of class runInfoObject and returns the object
 	"""

@@ -121,12 +121,27 @@ class referenceApertures:
 			self.sources.append(s)
 		#print "Number of reference apertures is:", len(self.sources)
 		
-	def getFrameCoverage(self, nFrames):
+	def calculateFrameCoverage(self, nFrames):
 		for s in self.sources:
 			numFrames = len(s.fluxMeasurements)
 			coverage = float(numFrames) / float(nFrames) * 100.
 			s.coverage = coverage
 			print s, coverage
+			
+	def sortByCoverage(self):
+		sortedSources = sorted(self.sources, key=lambda object: object.coverage, reverse = True)
+		self.sources = sortedSources
+
+	def sortByFlux(self):
+		sortedSources = sorted(self.sources, key=lambda object: object.flux, reverse = True)
+		self.sources = sortedSources
+
+		
+	def limitCoverage(self, maxCoverage):
+		newSources = []
+		for s in self.sources:
+			if s.coverage==maxCoverage: newSources.append(s)
+		self.sources = newSources
 
 class source:
 	""" This is a definition of a source 
@@ -154,6 +169,20 @@ class source:
 		
 	def setOffsets(self, offset):
 		self.xll, self.yll = offset
+		
+	def getPositionByFrame(self, frameNumber):
+		for p in self.positionLog:
+			if p['frameNumber']== frameNumber:
+				return p['position']
+		return (0, 0)
+		
+	def getData(self):
+		dataPoints = []
+		for f in self.fluxMeasurements:
+			position = self.getPositionByFrame(f['frameNumber'])
+			data = [ f['frameNumber'], f['flux'], position[0], position[1]]
+			dataPoints.append(data)
+		return dataPoints
 		
 	def setLatestPosition(self, frameNumber, newPosition):
 		self.latestPosition = newPosition
