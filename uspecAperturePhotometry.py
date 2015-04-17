@@ -69,8 +69,13 @@ if __name__ == "__main__":
 	parser.add_argument('--xyls', action='store_true', help='Write an XYLS (FITS) file output catalog that can be used as input to Astronomy.net')
 	parser.add_argument('--usefirstframe', action='store_true', help='Use the first frame of the run. Usually the first frame will be discarded.')
 	parser.add_argument('-i', '--keyimages', action='store_true', help='Show some key images during the processing of this run.')
+	parser.add_argument('--createconfig', action='store_true', help='Use this option to create a default configuration file.')
 	
 	arg = parser.parse_args()
+	
+	if arg.createconfig:
+		ultracamutils.createConfigFile()
+		sys.exit()
 	
 	config = ultracamutils.readConfigFile(arg.configfile)
 	
@@ -277,6 +282,7 @@ if __name__ == "__main__":
 				ppgplot.pgcirc(plotx, ploty, apertureRadius)
 				ppgplot.pgcirc(plotx, ploty, innerSkyRadius)
 				ppgplot.pgcirc(plotx, ploty, outerSkyRadius)
+				ppgplot.pgptxt(plotx-10, ploty-10, 0, 0, str(index)) 
 				
 			
 			data = window.data
@@ -333,224 +339,37 @@ if __name__ == "__main__":
 	ppgplot.pgslct(lightcurveView)
 	ppgplot.pgclos()
 	
-	referenceApertures.getFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
+	
+	# Find the reference aperture with most coverage
+	referenceApertures.calculateFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
+	referenceApertures.sortByCoverage()
+	maxCoverage = referenceApertures.getSources()[0].coverage
+	print "Max coverage:", maxCoverage
+	referenceApertures.limitCoverage(maxCoverage)
+	referenceApertures.sortByFlux()
+	referenceAperture = referenceApertures.getSources()[0]
+	print "Our reference aperture is:", referenceAperture
+	
+	# Write the reference aperture data as a CSV file
+	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_reference_aperture.csv"
+	outputFile = open(outputFilename, 'w')
+	
+	lineString = "Frame, Window, X, Y, X_ABS, Y_ABS\n"
+	outputFile.write(lineString)
+	apertureData = referenceAperture.getData()
+	windowIndex = referenceAperture.windowIndex
+	window = allWindows[windowIndex]
+	xll = window.xll/window.xbin - xmin
+	yll = window.yll/window.ybin - ymin
+		
+	for d in apertureData:
+		xAbs = d[2] + xll
+		yAbs = d[3] + yll
+		lineString = "%d, %d, %f, %f, %f, %f\n"%(d[0], windowIndex, d[2], d[3], xAbs, yAbs)
+		outputFile.write(lineString)
+	outputFile.close()
 	
 	
 	sys.exit()
 	
-	""" We have run through all of the images now. """
-	
-	allSources = []
-	sourceList = ultraspecClasses.sourceList()
-	for index, w in enumerate(allWindows):
-		xll = w.xll/w.xbin - xmin
-		yll = w.yll/w.ybin - ymin
-		image = w.stackedData
-		mean, median, std = sigma_clipped_stats(image, sigma=3.0)
-		maximum = numpy.max(image)
-		minimum = numpy.min(image)
-		debug.write("Mean: %f,  Median: %f,  Std (clipped 3sigma):%f"%(mean, median, std) , 2)
-		debug.write("Minimum: %f,  Maximum: %f"%(minimum, maximum), 2)
-		threshold = median + (std * 2.)
-		segm_img = detect_sources(image, threshold, npixels=5)
-		mask = segm_img.astype(numpy.bool)
-		mean, median, std = sigma_clipped_stats(image, sigma=3.0, mask=mask) 
-		debug.write("After source masking", 2)
-		debug.write("Mean: %f,  Median: %f,  Std (clipped 3sigma): %f"%(mean, median, std), 2)
-		selem = numpy.ones((5, 5))    # dilate using a 5x5 box
-		mask2 = binary_dilation(mask, selem)
-		mean, median, std = sigma_clipped_stats(image, sigma=3.0, mask=mask2)
-		debug.write("After dilation", 2)
-		debug.write("Mean: %f,  Median: %f,  Std (clipped 3sigma): %f"%(mean, median, std), 2)
-		
-		# Check the window image for any areas that should be masked...
-		lowerLimitBkg = median - std*5.
-		debug.write("5 sigma below the median is the lowerLimitBkg for the mask: %f"%(lowerLimitBkg), 2)
-		mask = (image < lowerLimitBkg)
-		maskBitmap = numpy.zeros(numpy.shape(mask))
-		maskBitmap = 255 * (mask) 
-		if (arg.keyimages):
-			maskImage = matplotlib.pyplot.figure(figsize=(10, 10))
-			matplotlib.pyplot.title("Mask for window:%d"%(index))
-			matplotlib.pyplot.imshow(maskBitmap, origin='lower', cmap='Greys_r',  interpolation = 'nearest')
-			matplotlib.pyplot.show(block=False)
-		bkg = Background(image, (10, 10), filter_shape=(3, 3), method='median', mask=mask)
-		background = bkg.background
-		if (arg.keyimages):
-			bgImage = matplotlib.pyplot.figure(figsize=(10, 10))
-			matplotlib.pyplot.title("Fitted background, window:%d"%(index))
-			matplotlib.pyplot.imshow(background, origin='lower', cmap='Greys_r',  interpolation = 'nearest')
-			matplotlib.pyplot.show(block=False)
-		image = image - background
-		
-		# Final stage source detection
-		bkg_sigma = 1.48 * mad(image)
-		sigmaThreshold = float(config.SIGMA_THRESHOLD)* float(bkg_sigma)
-		debug.write("Threshold for source detection is %f sigma or %f counts."%(float(config.SIGMA_THRESHOLD), sigmaThreshold), 2)
-		sources = daofind(image, fwhm=4.0, threshold=sigmaThreshold)   
-		
-		w.setSourcesAvoidBorders(sources)
-		w.BGSubtractedImage = image	
-		
-		sources = w.getSources()
-		for s in sources:
-			position = (s['xcentroid'], s['ycentroid'])
-			sourceObject = ultraspecClasses.source(0, position, index)
-			sourceObject.setDAOPhotData(s['sharpness'], s['roundness1'], s['roundness2'], s['npix'], s['sky'], s['peak'], s['flux'], s['mag'])
-			sourceObject.setOffsets((xll, yll))
-			sourceList.addSource(sourceObject)
-		positions = zip(sources['xcentroid'], sources['ycentroid'], sources['flux'])
-		new_positions = [(x + xll, y + yll, flux) for (x, y, flux) in positions]
-		allSources+=new_positions
-		
-	# Get the final stacked image
-	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
-	for w in allWindows:
-		imageData = w.stackedData
-		boostedImageData = ultracamutils.percentiles(w.BGSubtractedImage, 40, 99.8)
-		xll = w.xll/w.xbin - xmin
-		xsize = w.nx
-		yll = w.yll/w.ybin - ymin
-		ysize = w.ny
-		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + imageData
-		boostedFullFrame[yll:yll+ysize, xll:xll+xsize] = boostedFullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImageData
-
-	
-	#tempSources = [ (x, y) for (x, y, flux) in allSources]
-	#allSources = tempSources	
-	allSources = sorted(allSources, key=lambda object: object[2], reverse = True)
-	if (arg.keyimages):
-		finalFigure = matplotlib.pyplot.figure(figsize=(10, 10))
-		matplotlib.pyplot.title("Final stacked image")
-		matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
-		for s in allSources:
-			(x, y) = s[0], s[1]
-			matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 5, color='blue', fill=False, linewidth=1.0))
-		matplotlib.pyplot.gca().invert_yaxis()
-		matplotlib.pyplot.draw()
-		matplotlib.pyplot.show()
-	
-	# Output the source list for debug purposes
-	if (arg.debuglevel>1):
-		sourceString = "Sources"
-		for s in allSources:
-			sourceString+= "\n(%3.2f, %3.2f) %.2f"%(s[0], s[1], s[2])
-		debug.write(sourceString, 2)
-		
-	
-	sourceList.sortByFlux()
-	sourcesFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sources.csv"
-	debug.write("Writing source list to CSV file: " + sourcesFilename, 2)
-	sourceList.writeToCSV(sourcesFilename)
-	
-	# Write the XYLS FITS file
-	if (arg.xyls):
-		IDs = []
-		x_values = []
-		y_values = []
-		fluxes = []
-		
-		for num, s in enumerate(allSources):
-			IDs.append(num)
-			x_values.append(s[0])
-			y_values.append(s[1])
-			fluxes.append(s[2])
-			
-
-		FITSFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_sources.xyls"
-		debug.write("Writing FITS file: " + FITSFilename, level=2)
-		col1 = astropy.io.fits.Column(name='ID', format='I', array=IDs)
-		col2 = astropy.io.fits.Column(name='X', format='E', array=x_values)
-		col3 = astropy.io.fits.Column(name='Y', format='E', array=y_values)
-		col4 = astropy.io.fits.Column(name='FLUX', format='E', array=fluxes)
-		cols = astropy.io.fits.ColDefs([col1, col2, col3, col4])	
-		#tbhdu =astropy.io.fits.new_table(cols)
-		tbhdu =astropy.io.fits.TableHDU.from_columns(cols)
-		
-		prihdr = astropy.io.fits.Header()
-		prihdr['TARGET'] = runInfo.target
-		prihdr['RA'] = runInfo.ra
-		prihdr['DEC'] = runInfo.dec
-		prihdr['COMMENT'] = "This file created by uspecCreateSourceMap.py from the Ultracam pipeline."
-		prihdr['RUNIDENT'] = arg.runname
-		prihdr['WIDTH'] = fullFramexsize
-		prihdr['HEIGHT'] = fullFrameysize
-		
-		prihdu = astropy.io.fits.PrimaryHDU(header=prihdr)
-		thdulist = astropy.io.fits.HDUList([prihdu, tbhdu])
-		thdulist.writeto(FITSFilename, clobber=True)
-	
-	# Generate the stacked image for writing to disc
-	stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
-	matplotlib.pyplot.title("Stacked image")
-	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
-	for w in allWindows:
-		boostedImage = ultracamutils.percentiles(w.BGSubtractedImage, 10, 99.5)
-		xll = w.xll/w.xbin - xmin
-		xsize = w.nx
-		yll = w.yll/w.ybin - ymin
-		ysize = w.ny
-		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
-	
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + ".png"
-	# Write the image data with PIL library, rather than matplotlib
-	imgData = numpy.rot90(fullFrame, 3)
-	imgSize = numpy.shape(imgData)
-	imgLength = imgSize[0] * imgSize[1]
-	testData = numpy.reshape(imgData, imgLength, order="F")
-	img = Image.new("L", imgSize)
-	palette = []
-	for i in range(256):
-		palette.extend((i, i, i)) # grey scale
-		img.putpalette(palette)
-	img.putdata(testData)
-	debug.write("Writing PNG file: " + outputFilename, level = 2) 
-	img.save(outputFilename, "PNG", clobber=True)
-	
-	palette = []
-	for i in range(256):
-		palette.extend((255-i, 255-i, 255-i)) # inverse grey scale
-		img.putpalette(palette)
-	
-	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_inverted.png"
-	debug.write("Writing PNG file: " + outputFilename, level = 2) 
-	img.save(outputFilename, "PNG", clobber=True)
-	
-	# Write out the stacked image as a non-normalised FITS image
-	FITSFilename =  ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_stacked.fits"
-	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
-	for w in allWindows:
-		imageData = w.BGSubtractedImage
-		xll = w.xll/w.xbin - xmin
-		xsize = w.nx
-		yll = w.yll/w.ybin - ymin
-		ysize = w.ny
-		fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + imageData
-
-	ra = runInfo.ra  # Convert RA to degrees
-	dec = runInfo.dec
-	fieldScaleX = -8.3E-05
-	fieldScaleY = 8.3E-05
-	
-	prihdr = astropy.io.fits.Header()
-	prihdr['COMMENT'] = "This file created by the Ultracam pipeline."
-	prihdr['TARGET'] = runInfo.target
-	prihdr['COMMENT'] = runInfo.comment
-	prihdr['EQUINOX'] = 2000
-	prihdr['RADECSYS'] = "FK5"
-	prihdr['CTYPE1'] = "RA---TAN"
-	prihdr['CTYPE2'] = "DEC--TAN"
-	prihdr['CRPIX1'] = fullFramexsize/2
-	prihdr['CRPIX2'] = fullFrameysize/2
-	prihdr['CRVAL1'] = ra
-	prihdr['CRVAL2'] = dec
-	prihdr['CDELT1'] = fieldScaleX
-	prihdr['CDELT2'] = fieldScaleY
-	
-	hdu = astropy.io.fits.PrimaryHDU(fullFrame, header=prihdr)
-	
-	hdulist = astropy.io.fits.HDUList([hdu])
-	hdulist.writeto(FITSFilename, clobber=True)
-			
-	sys.exit()
 	
