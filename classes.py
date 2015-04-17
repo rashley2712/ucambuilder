@@ -244,6 +244,10 @@ class configObject:
 		self.SEX_MAGNITUDE = "FLUX_AUTO"
 		self.FRAME_STACK_BIN = 10
 		self.FRAME_MINIMUM = 100
+		self.SIGMA_THRESHOLD = 3.0
+		self.APERTURE_RADIUS = 5.0
+		self.INNER_SKY = 10.0
+		self.OUTER_SKY = 15.0
 
     def __setitem__(self, item, value):
 		setattr(self, item, value)
