@@ -264,6 +264,65 @@ if __name__ == "__main__":
 			if (ycenterOffset<0) or (xcenterOffset<0): continue
 			zoomImageData = window.data[ycenterInt-margins:ycenterInt+margins, xcenterInt-margins:xcenterInt+margins]
 			(xcen, ycen) = photutils.morphology.centroid_2dg(zoomImageData, error=None, mask=None)
+			xCollapsed = numpy.sum(zoomImageData, 0)
+			yCollapsed = numpy.sum(zoomImageData, 1)
+			
+			xPeak = numpy.argmax(xCollapsed)
+			yPeak = numpy.argmax(yCollapsed)
+			print "xPeak, yPeak:", xPeak, yPeak
+			
+			xMat = [ [ (xPeak-1)**2, (xPeak-1) , 1 ] , \
+			         [ (xPeak)**2,   (xPeak)   , 1 ] , \
+			         [ (xPeak+1)**2, (xPeak+1) , 1 ] ]
+			yMat = [ xCollapsed[xPeak-1], xCollapsed[xPeak], xCollapsed[xPeak+1] ]
+			(a, b, c) = numpy.linalg.solve(xMat, yMat)
+			newxPeak = -1.0 * b / (2.0 * a)
+			xStartPlot = newxPeak - 5
+			xEndPlot = newxPeak + 5
+			xRange = xEndPlot - xStartPlot
+			xpPoints = []
+			ypPoints = []
+			numPoints = 300
+			xScale = xRange/numPoints
+			for point in range(numPoints):
+				xp = point*(xScale) + xStartPlot
+				yp = a*xp*xp + b*xp + c
+				xpPoints.append(xp)
+				ypPoints.append(yp)
+
+			xMat = [ [ (yPeak-1)**2, (yPeak-1) , 1 ] , \
+			         [ (yPeak)**2,   (yPeak)   , 1 ] , \
+			         [ (yPeak+1)**2, (yPeak+1) , 1 ] ]
+			yMat = [ yCollapsed[yPeak-1], yCollapsed[yPeak], yCollapsed[yPeak+1] ]
+			(a, b, c) = numpy.linalg.solve(xMat, yMat)
+			newyPeak = -1.0 * b / (2.0 * a)
+			xStartPlot = newyPeak - 5
+			xEndPlot = newyPeak + 5
+			xRange = xEndPlot - xStartPlot
+			xyPoints = []
+			yyPoints = []
+			numPoints = 300
+			xScale = xRange/numPoints
+			for point in range(numPoints):
+				xp = point*(xScale) + xStartPlot
+				yp = a*xp*xp + b*xp + c
+				xyPoints.append(xp)
+				yyPoints.append(yp)
+
+			print "Centroid method: (%f, %f)   vs   Quadratic fit: (%f, %f)"%(xcen, ycen, newxPeak, newyPeak) 
+			
+			centroidView = ppgplot.pgopen('/xs')
+			ppgplot.pgenv(0, len(xCollapsed), 0, max(xCollapsed), 0, 0)
+			pgPlotTransform = [0, 1, 0, 0, 0, 1]
+			ppgplot.pglab("Pixels", "Counts position", "Source number: %d"%s.id)
+			ppgplot.pgsci(2)
+			ppgplot.pgpt(range(len(xCollapsed)), xCollapsed, 3)
+			ppgplot.pgline(xpPoints, ypPoints)
+			ppgplot.pgsci(3)
+			ppgplot.pgpt(range(len(xCollapsed)), yCollapsed, 2)
+			ppgplot.pgline(xyPoints, yyPoints)
+			ppgplot.pgclos()
+			#time.sleep(2)
 			
 			xcen+= xcenterOffset
 			ycen+= ycenterOffset
@@ -369,7 +428,36 @@ if __name__ == "__main__":
 		outputFile.write(lineString)
 	outputFile.close()
 	
+	# Plot the x-y movement of the reference aperture...
+	frameValues = []
+	xValues = []
+	yValues = []
+	for d in apertureData:
+		frameValues.append(d[0])
+		xValues.append(d[2])
+		yValues.append(d[3])
+	xStart = xValues[0]
+	xValues = [ x - xStart for x in xValues]
+	yStart = yValues[0]
+	yValues = [ y - yStart for y in yValues]
+	xrange = numpy.max(numpy.abs(xValues))
+	yrange = numpy.max(numpy.abs(yValues))
+	if xrange > yrange:
+		plotRange = xrange
+	else:
+		plotRange = yrange
+		
+	print "Plot range", plotRange
 	
+	positionGraph = ppgplot.pgopen('/xs')
+	ppgplot.pgenv(numpy.min(frameValues), numpy.max(frameValues), -1.0*plotRange, plotRange,0, 0)
+	pgPlotTransform = [0, 1, 0, 0, 0, 1]
+	ppgplot.pglab("Frame number", "Pixel position", "Source movement in pixels")
+	ppgplot.pgsfs(2)
+	ppgplot.pgpt(frameValues, xValues, 2)
+	ppgplot.pgpt(frameValues, yValues, 3)
+				
+	ppgplot.pgclos()
 	sys.exit()
 	
 	
