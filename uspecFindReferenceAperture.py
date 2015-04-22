@@ -35,6 +35,7 @@ from photutils import CircularAperture
 from photutils import CircularAnnulus
 import photutils
 import ppgplot
+import plplot
 
 def shift_func(output_coords, xoffset, yoffset):
 	return (output_coords[0] - yoffset, output_coords[1] - xoffset)
@@ -153,7 +154,28 @@ if __name__ == "__main__":
 
 	ccdFrame = rdat()
 	frameWindows = ccdFrame[0]
-	
+	"""
+	# Playing around with PLPLOT
+	plsdev = plplot.plsdev("xwin")
+	plplot.plsetopt('geometry','600x600')
+	plinit = plplot.plinit()
+	plenv = plplot.plenv(-10, 10, -1, 1, 0, 2);	
+	print "plsdev:", plsdev, " plinit: ", plinit, " plplot: ", plinit
+	xValues = []
+	yValues = []
+	numPoints = 400
+	xLower = -10.
+	xUpper = 10.
+	xRange = xUpper - xLower
+	scale = xRange/float(numPoints)
+	for n in range(numPoints):
+		x = n * scale + xLower
+		y = math.sin(x)
+		xValues.append(x)
+		yValues.append(y)
+	plplot.plpoin(xValues, yValues, 1)
+	"""			
+		
 	for windowIndex, w in enumerate(frameWindows):
 		# Set up some info about the window sizes and extents
 		window = ultraspecClasses.window()
@@ -263,13 +285,14 @@ if __name__ == "__main__":
 			
 			if (ycenterOffset<0) or (xcenterOffset<0): continue
 			zoomImageData = window.data[ycenterInt-margins:ycenterInt+margins, xcenterInt-margins:xcenterInt+margins]
-			(xcen, ycen) = photutils.morphology.centroid_2dg(zoomImageData, error=None, mask=None)
+			#(xcen, ycen) = photutils.morphology.centroid_2dg(zoomImageData, error=None, mask=None)
+			
 			xCollapsed = numpy.sum(zoomImageData, 0)
 			yCollapsed = numpy.sum(zoomImageData, 1)
 			
 			xPeak = numpy.argmax(xCollapsed)
 			yPeak = numpy.argmax(yCollapsed)
-			print "xPeak, yPeak:", xPeak, yPeak
+			#print "xPeak, yPeak:", xPeak, yPeak
 			
 			xMat = [ [ (xPeak-1)**2, (xPeak-1) , 1 ] , \
 			         [ (xPeak)**2,   (xPeak)   , 1 ] , \
@@ -309,8 +332,10 @@ if __name__ == "__main__":
 				xyPoints.append(xp)
 				yyPoints.append(yp)
 
-			print "Centroid method: (%f, %f)   vs   Quadratic fit: (%f, %f)"%(xcen, ycen, newxPeak, newyPeak) 
-			
+			xcen = newxPeak
+			ycen = newyPeak
+			#print "Centroid method: (%f, %f)   vs   Quadratic fit: (%f, %f)"%(xcen, ycen, newxPeak, newyPeak) 
+			"""
 			centroidView = ppgplot.pgopen('/xs')
 			ppgplot.pgenv(0, len(xCollapsed), 0, max(xCollapsed), 0, 0)
 			pgPlotTransform = [0, 1, 0, 0, 0, 1]
@@ -322,8 +347,8 @@ if __name__ == "__main__":
 			ppgplot.pgpt(range(len(xCollapsed)), yCollapsed, 2)
 			ppgplot.pgline(xyPoints, yyPoints)
 			ppgplot.pgclos()
-			#time.sleep(2)
-			
+			time.sleep(2)
+			"""
 			xcen+= xcenterOffset
 			ycen+= ycenterOffset
 			s.setLatestPosition(trueFrameNumber, (xcen, ycen))

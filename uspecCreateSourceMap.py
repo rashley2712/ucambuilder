@@ -549,7 +549,7 @@ if __name__ == "__main__":
 		img.putpalette(palette)
 	img.putdata(testData)
 	debug.write("Writing PNG file: " + outputFilename, level = 2) 
-	img.save(outputFilename, "PNG", clobber=True)
+	img.save(outputFilename, clobber=True)
 	
 	palette = []
 	for i in range(256):
