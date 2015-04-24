@@ -114,7 +114,7 @@ class referenceApertures:
 		self.sources = []
 		sourceList.sortByFlux()
 		topPercent = 40.
-		maxApertures = 4
+		maxApertures = 5
 		
 		for index, s in enumerate(sourceList.sources):
 			if index>=maxApertures: break
@@ -298,6 +298,11 @@ class window:
 		
 	def getSources(self):
 		return self.sources
+		
+	def __str__(self):
+		retString = ""
+		retString+= "xll, yll, nx, ny (%d, %d, %d, %d)  %dx%d"%(self.xll, self.yll, self.nx, self.ny, self.xbin, self.ybin)
+		return retString
 
 class sourceMap:
 	""" This class defines a histogram that is going to be used as a 'source map' or a 'heat map of sources'
@@ -338,6 +343,9 @@ class runInfo:
 		self.expose = 0
 		self.num = 0
 		self.comment = ""
+		self.windowInfo = []
+		self.powerCycle = False
+		self.flags = ''
 		
 		
 	def loadFromJSON(self, JSONFilename):
@@ -372,31 +380,81 @@ class runInfo:
 	def loadFromXML(self, rawDataDirectory):
 		""" This method is called upon if the loadFromJSON method fails to return any data
 		"""
-		print "Trying to load run info from the XML file"
 		XMLFilename = ultracamutils.addPaths(rawDataDirectory, self.runPath) + ".xml"
-		print XMLFilename
 		try:
 			tree = ElementTree.parse(XMLFilename)
 		except IOError as e:
-			print "Could not get read the run's XML file."
+			print "Could not get read the run's XML file at:", XMLFilename
 			return False
 		
 		root = tree.getroot()
+		# Read the window sizes and binning, etc
+		filesave = root.find('filesave_status')
+		instrument = filesave.find('instrument_status')
+		detector = instrument.find('detector_status')
+		
+		powerToDetector = detector.attrib['power']
+		if powerToDetector == 'OFF':
+			self.powerCycle = True
+			return True
+		
+		parameter = instrument.findall('parameter_status')
+		parameters = {}
+		for param in parameter:
+			parameters[param.attrib['name']] = param.attrib['value']
+		if parameters.has_key('COM_TAB_START'):
+			self.powerCycle = True
+			return True
+			
+		
+		windows = []
+		xbin = int(parameters['X_BIN'])
+		ybin = int(parameters['Y_BIN'])
+		for number in range(1, 5):
+			try:
+				xStartStr = "X%d_START"%number
+				xStart = int(parameters[xStartStr]) 
+				yStartStr = "Y%d_START"%number
+				yStart = int(parameters[yStartStr]) 
+				xSizeStr = "X%d_SIZE"%number
+				xSize = int(parameters[xSizeStr]) 
+				ySizeStr = "Y%d_SIZE"%number
+				ySize = int(parameters[ySizeStr]) 
+			except KeyError:
+				continue
+			if xSize!=0 and ySize!=0:
+				# Add this to the list of windows
+				windowDict = {}
+				windowDict['xll'] = xStart
+				windowDict['nx'] = xSize
+				windowDict['yll'] = yStart
+				windowDict['ny'] = ySize
+				windowDict['xbin'] = xbin
+				windowDict['ybin'] = ybin
+				windows.append(windowDict)
+		self.windowInfo = windows
+				
+		# Get the observation meta-data
 		user = root.find('user')
 		target = user.find('target').text
+		flags = user.find('flags').text
 		PI = user.find('PI').text
 		ID = user.find('ID').text
 		observers = user.find('Observers').text
-		raStr = user.find('RA').text
-		decStr = user.find('Dec').text
-		ra, dec = ultracamutils.fromSexagesimal(raStr, decStr)
-		print "Target:", target
-		print "PI: %s Observers: %s  Programme: %s"%(PI, observers, ID)
-		print "(ra, dec): (%f, %f)"%(ra, dec)
+		try:
+			raStr = user.find('RA').text
+			decStr = user.find('Dec').text
+			ra, dec = ultracamutils.fromSexagesimal(raStr, decStr)
+		except AttributeError:
+			ra, dec = (0, 0)
+		#print "Target:", target
+		#print "PI: %s Observers: %s  Programme: %s"%(PI, observers, ID)
+		#print "(ra, dec): (%f, %f)"%(ra, dec)
 		
 		self.ra = ra
 		self.dec = dec
 		self.target = target
+		self.flags = flags
 		
 		return True
         

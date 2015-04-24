@@ -3,6 +3,40 @@ import astropy.io.fits
 import os, subprocess, math, re
 import Image,ImageDraw,ImageFont
 
+def determineFullFrameSize(windows):
+	leftestPixel = 1057
+	rightestPixel = 0
+	topestPixel = 0 
+	bottomestPixel = 1040
+	for w in windows:
+		if w.xll/w.xbin < leftestPixel: leftestPixel = w.xll/w.xbin
+		if w.yll/w.ybin < bottomestPixel: bottomestPixel = w.yll/w.ybin
+		if (w.xll/w.xbin + w.nx) > rightestPixel: rightestPixel = w.xll/w.xbin + w.nx
+		if (w.yll/w.ybin + w.ny) > topestPixel: topestPixel = w.yll/w.ybin + w.ny
+			
+	return leftestPixel, bottomestPixel, rightestPixel, topestPixel
+
+def getRunsByDay(rawFilePath, date):
+	
+	try:
+		fileList = os.listdir(rawFilePath + '/' + date) 
+	except OSError:
+		print "No data for the date: %s"%date
+		return []
+		
+	runs_re = re.compile(r'run[0-9][0-9][0-9].xml')
+	
+	todaysRuns = []
+	for f in fileList:
+			r = runs_re.search(f)
+			if (r):
+				runNumber = r.group(0)[:6]
+				runname = date + '/' + runNumber
+				todaysRuns.append(runname)
+	
+	return todaysRuns
+	
+
 def readConfigFile(filename):
     """ Reads the config file name ucambuilder.conf and returns a configObject
     """
