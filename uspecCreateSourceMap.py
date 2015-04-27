@@ -30,10 +30,10 @@ from astropy.convolution import Gaussian2DKernel
 from photutils.detection import detect_sources
 from scipy.ndimage import binary_dilation
 from photutils.background import Background
+import ppgplot
 
 def shift_func(output_coords, xoffset, yoffset):
 	return (output_coords[0] - yoffset, output_coords[1] - xoffset)
-
 
 def determineFullFrameSize(windows):
 	leftestPixel = 1057
@@ -96,7 +96,6 @@ if __name__ == "__main__":
 	""" Check that the working folders and the output folders are there
 	"""
 	(runDate, runNumber) = ultracamutils.separateRunNameAndDate(arg.runname)
-	
 	workingFolder = ultracamutils.addPaths(config.WORKINGDIR, runDate)
 	ultracamutils.createFolder(workingFolder)
 	
@@ -161,6 +160,12 @@ if __name__ == "__main__":
 	if (arg.keyimages):
 		stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
 		matplotlib.pyplot.title("Initial 10 frame stacked image")
+		stackedPreview = ppgplot.pgopen('/xs')
+		ppgplot.pgenv(0.,fullFramexsize,0.,fullFrameysize, 1, 0)
+		pgPlotTransform = [0, 1, 0, 0, 0, 1]
+		ppgplot.pgsfs(2)
+		ppgplot.pglab("", "", "First 10 frames, stacked")	
+
 	boostedFullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	for w in allWindows:
@@ -213,6 +218,10 @@ if __name__ == "__main__":
 			for s in topSources:
 				x, y = s[0], s[1]
 				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 10, color='blue', fill=False, linewidth=1.0))
+		
+		rows, cols = numpy.shape(boostedFullFrame)
+		ppgplot.pggray(boostedFullFrame, 0, cols-1, 0, rows-1, 0, 255, pgPlotTransform)
+		#ppgplot.pggray(fullFrame, 0, cols-1 , 0, rows-1 , 0, 255, pgPlotTransform)
 	
 		matplotlib.pyplot.gca().invert_yaxis()			
 		matplotlib.pyplot.show(block=False)
