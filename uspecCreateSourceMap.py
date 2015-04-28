@@ -157,15 +157,6 @@ if __name__ == "__main__":
 			
 		
 	# Reconstruct a full frame from the windows	
-	if (arg.keyimages):
-		stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
-		matplotlib.pyplot.title("Initial 10 frame stacked image")
-		stackedPreview = ppgplot.pgopen('/xs')
-		ppgplot.pgenv(0.,fullFramexsize,0.,fullFrameysize, 1, 0)
-		pgPlotTransform = [0, 1, 0, 0, 0, 1]
-		ppgplot.pgsfs(2)
-		ppgplot.pglab("", "", "First 10 frames, stacked")	
-
 	boostedFullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 	for w in allWindows:
@@ -208,7 +199,15 @@ if __name__ == "__main__":
 		masterApertureList = [ (x, y) for (x, y, flux) in topSources]
 		
 	
+	# Plot the preview frame
 	if (arg.keyimages):
+		#stackedFigure = matplotlib.pyplot.figure(figsize=(10, 10))
+		#matplotlib.pyplot.title("Initial 10 frame stacked image")
+		stackedPreview = ppgplot.pgopen('/xs')
+		ppgplot.pgenv(0.,fullFramexsize,0.,fullFrameysize, 1, 0)
+		pgPlotTransform = [0, 1, 0, 0, 0, 1]
+		ppgplot.pglab("x", "y", "Initial 10 frame stacked image.")
+	
 		# Display the image on the user's screen
 		image = matplotlib.pyplot.imshow(boostedFullFrame, cmap='gray_r')
 		for s in allSources:
@@ -221,11 +220,12 @@ if __name__ == "__main__":
 		
 		rows, cols = numpy.shape(boostedFullFrame)
 		ppgplot.pggray(boostedFullFrame, 0, cols-1, 0, rows-1, 0, 255, pgPlotTransform)
-		#ppgplot.pggray(fullFrame, 0, cols-1 , 0, rows-1 , 0, 255, pgPlotTransform)
-	
-		matplotlib.pyplot.gca().invert_yaxis()			
-		matplotlib.pyplot.show(block=False)
-
+		ppgplot.pgsfs(2)   # Set fill style to 'outline'
+		ppgplot.pgsci(3)   # Set the colour to 'green'
+		for s in allSources:
+			x, y = s[0], s[1]
+			ppgplot.pgcirc(x,y, 10)
+		
 		
 	""" End of the prework """
 
@@ -243,14 +243,18 @@ if __name__ == "__main__":
 	""" Run through all the frames in the .dat file.
 	"""
 	if arg.preview:
-		matplotlib.pyplot.figure(figsize=(8, 8))
-		matplotlib.pyplot.ion()
-		fig = matplotlib.pyplot.gcf()
-		matplotlib.pyplot.title("Frame image")
+		mainPreview = ppgplot.pgopen('/xs')
+		ppgplot.pgenv(0.,fullFramexsize,0.,fullFrameysize, 1, 0)
+		pgPlotTransform = [0, 1, 0, 0, 0, 1]
 		if arg.stack:
-			matplotlib.pyplot.title("Stacked image")
-		if applyShift: zoomedImage = matplotlib.pyplot.figure(figsize=(5, 5))
-		
+			ppgplot.pglab("x", "y", "Stacked image.")
+		else:
+			ppgplot.pglab("x", "y", "Frame image.")
+		if applyShift:
+			zoomedAperture = ppgplot.pgopen('/xs')
+			ppgplot.pgenv(0., 20 ,0., 20, 1, 0)
+			pgPlotTransform = [0, 1, 0, 0, 0, 1]
+			ppgplot.pglab("x", "y", "Zoom on reference source.")		
 			
 	fullFrame = numpy.zeros((1057, 1040))
 			
@@ -353,45 +357,42 @@ if __name__ == "__main__":
 				ysize = w.ny
 				fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage
 					
-			matplotlib.pyplot.figure(fig.number)
-			matplotlib.pyplot.imshow(fullFrame, cmap='gray_r')
-			
+			ppgplot.pgslct(mainPreview)
+			(rows, cols) = numpy.shape(fullFrame)
+			ppgplot.pggray(fullFrame, 0, cols-1, 0, rows-1, 0, 255, pgPlotTransform)
+			ppgplot.pgsci(3)
+			ppgplot.pgsfs(2)
 			for s in allSources:
 				(x, y) = s
-				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((x,y), 15, color='green', fill=False, linewidth=1.0))
-			
-			
-			matplotlib.pyplot.title("Frame image [%d/%d]"%(trueFrameNumber, frameRange))
-			if arg.stack:
-				matplotlib.pyplot.title("Stacked image [%d/%d]"%(trueFrameNumber, frameRange))
-			matplotlib.pyplot.gca().invert_yaxis()
-			matplotlib.pyplot.draw()
-			matplotlib.pyplot.show()
-			matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
-			
+				ppgplot.pgcirc(x, y, 10)
+				
 			# Now also draw the zoomed in region around the first aperture
 			if (applyShift):
 				(x, y) = masterApertureList[0]
 				croppedFrame = fullFrame[y-10:y+10, x-9:x+10]
+				ppgplot.pgslct(zoomedAperture)
+				rows, cols = numpy.shape(croppedFrame)
+				ppgplot.pggray(croppedFrame, 0, cols-1, 0, rows-1, 0, 255, pgPlotTransform)
+				ppgplot.pgsci(3)
+				ppgplot.pgsfs(2)
+				ppgplot.pgcirc(11, 11, 1)
+				xLine = [11, 11+xr]
+				yLine = [11, 11+yr]
+				ppgplot.pgline(xLine, yLine)
+				
 			
-				matplotlib.pyplot.figure(zoomedImage.number)
-				matplotlib.pyplot.imshow(croppedFrame, cmap='gray_r', interpolation = 'nearest')
-				matplotlib.pyplot.gca().add_artist(matplotlib.pyplot.Circle((10,10), 1, color='green', fill=False, linewidth=1.0))
-				matplotlib.pyplot.plot([10, 10+xr], [ 10, 10+yr], lw=1, color='green')
-				matplotlib.pyplot.title("Zoom on aperture number 1: Frame [%d/%d]"%(trueFrameNumber, frameRange))
-				matplotlib.pyplot.xlim([0, 20])
-				matplotlib.pyplot.ylim([0, 20])
-				matplotlib.pyplot.gca().invert_yaxis()
-				matplotlib.pyplot.draw()
-				matplotlib.pyplot.show()
-				matplotlib.pyplot.clf()    # This clears the figure in matplotlib and fixes the 'memory leak'
+			
 			
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
 	sys.stdout.write("\rProcessed %d frames      \n"%frameRange)
 	sys.stdout.flush()
 	
+	ppgplot.pgclos()
+		
+	################################################################################################
 	""" We have run through all of the images now. """
+	################################################################################################
 	
 	allSources = []
 	sourceList = ultraspecClasses.sourceList()

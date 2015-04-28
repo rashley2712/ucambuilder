@@ -12,8 +12,7 @@ import numpy, math
 import classes
 import ultraspecClasses
 from trm import ultracam
-from trm.ultracam.UErrors import 		ppgplot.pggray(fullFrame, 0, cols-1 , 0, rows-1 , 0, 255, pgPlotTransform)
-	PowerOnOffError, UendError, UltracamError
+from trm.ultracam.UErrors import PowerOnOffError, UendError, UltracamError
 import ultracam_shift
 import time, datetime
 import json
