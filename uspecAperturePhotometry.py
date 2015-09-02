@@ -17,7 +17,7 @@ import ultracam_shift
 import time, datetime
 import json
 from scipy import ndimage
-import Image
+from PIL import Image
 import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
@@ -180,12 +180,15 @@ if __name__ == "__main__":
 	ppgplot.pgenv(startFrame, startFrame + frameRange, 0, 100, 0, 0)
 	ppgplot.pgask(False)
 	
+	pixelPositionView = ppgplot.pgopen('/xs')
+	ppgplot.pgenv(startFrame, startFrame + frameRange, -10, 10, 0, 0)
+	ppgplot.pgask(False)
+	
 	if (arg.preview):		
 		bitmapView = ppgplot.pgopen('/xs')
 		ppgplot.pgenv(0.,fullFramexsize,0.,fullFrameysize, 1, 0)
 		pgPlotTransform = [0, 1, 0, 0, 0, 1]
 		ppgplot.pgsfs(2)
-	
 					
 	xValues = []
 	yValues = []	
@@ -242,13 +245,10 @@ if __name__ == "__main__":
 			for s in sourceList.getSources():
 				(x, y) = s.abs_position
 				ppgplot.pgcirc(x, y, 10)
+			
+			ppgplot.pgsci(2)
 		
 		margins = 10
-		
-		if arg.preview: 
-			ppgplot.pgslct(bitmapView)
-			ppgplot.pgsci(2)
-			
 		plotColour = [1, 2, 3, 4, 5, 6]
 		for index, s in enumerate(referenceApertures.getSources()):
 			window = allWindows[s.windowIndex]
@@ -305,7 +305,7 @@ if __name__ == "__main__":
 			yMax = numpy.max(yValues)
 			shortXArray = [trueFrameNumber]
 			shortYArray = [final_sum]
-			if arg.preview: ppgplot.pgslct(lightcurveView)
+			ppgplot.pgslct(lightcurveView)
 			if yMax > yAxisMax:
 				yAxisMax = yMax * 1.1
 				ppgplot.pgenv(startFrame, startFrame + frameRange, yMin, yAxisMax, 0, 0)
@@ -326,7 +326,18 @@ if __name__ == "__main__":
 				ycen= center[1] + yll
 				#print xll, yll, center, xcen, ycen
 				ppgplot.pgcirc(xcen, ycen, 5)"""
-			
+		
+		# Plot the pixel positions of the apertures
+		ppgplot.pgslct(pixelPositionView)
+		source = referenceApertures.getSources()[0]   # Just get the first aperture to start with...
+		startX = source.positionLog[0]['position'][0]
+		startY = source.positionLog[0]['position'][1]
+		xPositions = [ p['position'][0] - startX for p in source.positionLog ]
+		yPositions = [ p['position'][1] - startY for p in source.positionLog ]
+		ppgplot.pgsci(2)
+		ppgplot.pgpt(range(frameIndex), xPositions, 2)
+		ppgplot.pgsci(3)
+		ppgplot.pgpt(range(frameIndex), yPositions, 2)
 			
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
@@ -337,6 +348,9 @@ if __name__ == "__main__":
 		ppgplot.pgslct(bitmapView)
 		ppgplot.pgclos()
 	ppgplot.pgslct(lightcurveView)
+	ppgplot.pgclos()
+	
+	ppgplot.pgslct(pixelPositionView)
 	ppgplot.pgclos()
 	
 	

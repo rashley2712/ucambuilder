@@ -1,7 +1,7 @@
 import numpy, json, classes
 import astropy.io.fits
 import os, subprocess, math, re
-import Image,ImageDraw,ImageFont
+from PIL import Image,ImageDraw,ImageFont
 
 def determineFullFrameSize(windows):
 	leftestPixel = 1057

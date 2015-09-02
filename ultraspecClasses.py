@@ -305,7 +305,7 @@ class window:
 		return retString
 
 class sourceMap:
-	""" This class defines a histogram that is going to be used as a 'source map' or a 'heat map of sources'
+	""" This class defines a 2D histogram that is going to be used as a 'source map' or a 'heat map of sources'
 	"""
 	
 	def __init__(self, dimensions):

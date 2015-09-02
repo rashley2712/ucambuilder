@@ -17,7 +17,7 @@ import ultracam_shift
 import time, datetime
 import json
 from scipy import ndimage
-import Image
+from PIL import Image
 import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
