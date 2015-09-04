@@ -17,7 +17,7 @@ import ultracam_shift
 import time, datetime
 import json
 from scipy import ndimage
-import Image
+from PIL import Image
 import ucamObjectClass
 from photutils import datasets
 from photutils import daofind
@@ -474,7 +474,7 @@ if __name__ == "__main__":
 	print "Plot range", plotRange
 	
 	positionGraph = ppgplot.pgopen('/xs')
-	ppgplot.pgenv(numpy.min(frameValues), numpy.max(frameValues), -1.0*plotRange, plotRange,0, 0)
+	ppgplot.pgenv(numpy.min(frameValues), numpy.max(frameValues), -1.1*plotRange, 1.1*plotRange,0, 0)
 	pgPlotTransform = [0, 1, 0, 0, 0, 1]
 	ppgplot.pglab("Frame number", "Pixel position", "Source movement in pixels")
 	ppgplot.pgsfs(2)

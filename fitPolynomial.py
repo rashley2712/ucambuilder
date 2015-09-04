@@ -63,6 +63,13 @@ def polynomial(n, a, x):
 	for i in range(n):
 		result+= a[i] * (x**float(i))
 	return result
+	
+def polynomial_gradient(n, a, x):
+	result = 0	
+	for i in range(1, n):
+		result+= i * a[i] * (x**float(i-1))
+	return result
+
 
 if __name__ == "__main__":
 	
@@ -97,19 +104,65 @@ if __name__ == "__main__":
 	
 	ppgplot.pgpt(range(len(source.offsetX)), source.offsetX, 1)
 	
-	n = 6
-	a = numpy.zeros(n) 
+	# Start by fitting a quadratic through three points in the data range
+	datax = numpy.arange(len(source.offsetX))
+	datay = numpy.array(source.offsetX)
+	if len(datax) < 3:
+		print "Too few points for a fit. Exiting."
+		sys.exit()
+	xpoints = [datax[0], datax[int(len(datax)/2)], datax[-1]]
+	ypoints = [datay[0], datay[int(len(datax)/2)], datay[-1]]
+	print zip(xpoints, ypoints)
+	xMat = [ [ 1, xpoints[0], xpoints[0]**2 ] , \
+	         [ 1, xpoints[1], xpoints[1]**2 ] , \
+	         [ 1, xpoints[2], xpoints[2]**2 ] ]
+	yMat = [ ypoints[0], ypoints[1], ypoints[2] ]
+	a_quad = numpy.linalg.solve(xMat, yMat)
+	print a_quad
+
+
+	order = 9
+	n = order+1
+	a = numpy.zeros(n)
+	a[0] = a_quad[0]
+	a[1] = a_quad[1]
+	a[2] = a_quad[2]
+	fixed_args = ( n ) 
+	delta = 0.1
+	bounds = []
+	scales = []
+	for order, parameter in enumerate(a):
+		limit = parameter + (delta * 10**(-(2*order)))
+		scale = 1*10**(-order*3)
+		bound = (-limit, limit)
+		print parameter, bound
+		bounds.append(bound)
+		scales.append(scale)
+	
+	print a, bounds, scales
 	
 	xfit = numpy.arange(len(source.offsetX))
 	yfit = [polynomial(n, a, x) for x in xfit]
 	ppgplot.pgsci(2)
 	ppgplot.pgline(xfit, yfit)
-	datax = xfit
-	datay = source.offsetX
-	results = scipy.optimize.minimize(chiSquared, a, args = n, method = 'Nelder-Mead')
+	
+	result = numpy.polyfit(datax, datay, order)
+	print "Numpy result", result
+	a = result[::-1]
+	yfit = [polynomial(n, a, x) for x in xfit]
+	print "ChiSquared of the fit:", chiSquared(a)
+	ppgplot.pgsci(2)
+	ppgplot.pgline(xfit, yfit)
+	
+	sys.exit()
+	
+	results = scipy.optimize.minimize(chiSquared, a, method = 'SLSQP', jac=False, bounds=bounds)
+	# results = scipy.optimize.fmin(chiSquared, a)
+	# results = scipy.optimize.fmin_tnc(chiSquared, a, approx_grad=True, scale=scales)
 	print results
 	a = results.x
 	yfit = [polynomial(n, a, x) for x in xfit]
+	
 	
 	ppgplot.pgsci(1)
 	ppgplot.pgenv(0, len(source.offsetX), -maxOffset, maxOffset, 0, 0)
