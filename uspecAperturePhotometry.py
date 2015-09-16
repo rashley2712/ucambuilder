@@ -101,6 +101,10 @@ if __name__ == "__main__":
 	else:
 		debug.write("Loaded %d sources from the CSV file."%sourceList.getNumSources(), 2)
 	
+	referenceApertures = ultraspecClasses.referenceApertures()
+	referenceApertures.initFromSourceList(sourceList)
+	print "Number of reference apertures we are going to use is %d."%len(referenceApertures.sources)
+	
 	runInfo = ultraspecClasses.runInfo(arg.runname)
 	found = runInfo.loadFromJSON(config.RUNINFO)
 	if not found:
@@ -193,8 +197,6 @@ if __name__ == "__main__":
 	xValues = []
 	yValues = []	
 	yAxisMax= 100	
-	referenceApertures = ultraspecClasses.referenceApertures()
-	referenceApertures.initFromSourceList(sourceList)
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()

@@ -114,7 +114,7 @@ class referenceApertures:
 		self.sources = []
 		sourceList.sortByFlux()
 		topPercent = 40.
-		maxApertures = 5
+		maxApertures = 4
 		
 		for index, s in enumerate(sourceList.sources):
 			if index>=maxApertures: break

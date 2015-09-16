@@ -100,6 +100,11 @@ if __name__ == "__main__":
 		sys.exit()
 	else:
 		debug.write("Loaded %d sources from the CSV file."%sourceList.getNumSources(), 2)
+	referenceApertures = ultraspecClasses.referenceApertures()
+	referenceApertures.initFromSourceList(sourceList)
+	debug.write("Number of reference apertures we are going to use is %d."%len(referenceApertures.sources), 2)
+	numXYPanels = len(referenceApertures.sources)
+	
 	
 	runInfo = ultraspecClasses.runInfo(arg.runname)
 	found = runInfo.loadFromJSON(config.RUNINFO)
@@ -153,27 +158,6 @@ if __name__ == "__main__":
 
 	ccdFrame = rdat()
 	frameWindows = ccdFrame[0]
-	"""
-	# Playing around with PLPLOT
-	plsdev = plplot.plsdev("xwin")
-	plplot.plsetopt('geometry','600x600')
-	plinit = plplot.plinit()
-	plenv = plplot.plenv(-10, 10, -1, 1, 0, 2);	
-	print "plsdev:", plsdev, " plinit: ", plinit, " plplot: ", plinit
-	xValues = []
-	yValues = []
-	numPoints = 400
-	xLower = -10.
-	xUpper = 10.
-	xRange = xUpper - xLower
-	scale = xRange/float(numPoints)
-	for n in range(numPoints):
-		x = n * scale + xLower
-		y = math.sin(x)
-		xValues.append(x)
-		yValues.append(y)
-	plplot.plpoin(xValues, yValues, 1)
-	"""			
 		
 	for windowIndex, w in enumerate(frameWindows):
 		# Set up some info about the window sizes and extents
@@ -197,9 +181,25 @@ if __name__ == "__main__":
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
 	
-	lightcurveView = ppgplot.pgopen('/xs')
+	"""lightcurveView = ppgplot.pgopen('/xs')
 	ppgplot.pgenv(startFrame, startFrame + frameRange, 0, 100, 0, 0)
+	ppgplot.pgask(False)"""
+	
+	xyPositionView = ppgplot.pgopen('/xs')
+	ppgplot.pgpap(6.18, 1.618)
+	ppgplot.pgsubp(1, numXYPanels)
+	ppgplot.pgsci(5)
+	for panel in range(numXYPanels):
+		currentSize = ppgplot.pgqch()
+		ppgplot.pgsch(1)
+		ppgplot.pgenv(startFrame, startFrame + frameRange, -5, 5, 0, -2)
+		ppgplot.pgbox('A', 0.0, 0, 'BCG', 0.0, 0)
+		ppgplot.pglab("", "%d"%panel, "")
+		ppgplot.pgsch(currentSize)
+	
 	ppgplot.pgask(False)
+	ppgplot.pgsci(1)
+	
 	
 	if (arg.preview):		
 		bitmapView = ppgplot.pgopen('/xs')
@@ -211,8 +211,6 @@ if __name__ == "__main__":
 	xValues = []
 	yValues = []	
 	yAxisMax= 100	
-	referenceApertures = ultraspecClasses.referenceApertures()
-	referenceApertures.initFromSourceList(sourceList)
 	for frameIndex in range(2, frameRange + 1):
 		framesToGo = frameRange - frameIndex
 		currentTime = datetime.datetime.now()
@@ -239,6 +237,7 @@ if __name__ == "__main__":
 		
 		if arg.preview:
 			ppgplot.pgslct(bitmapView) 
+			ppgplot.pgbbuf()
 			fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 			for w in allWindows:
 				if (arg.stack):
@@ -264,12 +263,10 @@ if __name__ == "__main__":
 				(x, y) = s.abs_position
 				ppgplot.pgcirc(x, y, 10)
 		
-		margins = 10
-		
-		if arg.preview: 
-			ppgplot.pgslct(bitmapView)
+			# ppgplot.pgslct(bitmapView)
 			ppgplot.pgsci(2)
-			
+
+		margins = 10			
 		plotColour = [1, 2, 3, 4, 5, 6]
 		for index, s in enumerate(referenceApertures.getSources()):
 			window = allWindows[s.windowIndex]
@@ -379,7 +376,6 @@ if __name__ == "__main__":
 			bkg_mean = outerFlux / annulus_apertures.area()
 			bkg_sum = bkg_mean * apertures.area()
 			final_sum = innerFlux - bkg_sum
-			#print "Sky subtracted flux:", final_sum
 			s.addFluxMeasurement(trueFrameNumber, final_sum)
 			
 			xValues.append(trueFrameNumber)
@@ -388,7 +384,8 @@ if __name__ == "__main__":
 			yMax = numpy.max(yValues)
 			shortXArray = [trueFrameNumber]
 			shortYArray = [final_sum]
-			if arg.preview: ppgplot.pgslct(lightcurveView)
+			
+			"""ppgplot.pgslct(lightcurveView)
 			if yMax > yAxisMax:
 				yAxisMax = yMax * 1.1
 				ppgplot.pgenv(startFrame, startFrame + frameRange, yMin, yAxisMax, 0, 0)
@@ -397,6 +394,7 @@ if __name__ == "__main__":
 			ppgplot.pgsci(plotColour[index])	
 			ppgplot.pgpt(shortXArray, shortYArray, 1)
 		
+			"""
 	
 			"""ppgplot.pgsci(2)
 			for index, s in enumerate(sourceList.getSources()):
@@ -409,7 +407,21 @@ if __name__ == "__main__":
 				ycen= center[1] + yll
 				#print xll, yll, center, xcen, ycen
 				ppgplot.pgcirc(xcen, ycen, 5)"""
-			
+		
+		if arg.preview:
+			ppgplot.pgebuf()
+		
+		ppgplot.pgslct(xyPositionView)
+		for panel, aperture in enumerate(referenceApertures.getSources()):
+			xPosition, yPosition = numpy.subtract(aperture.latestPosition, aperture.position)
+			shortXArray = [trueFrameNumber]
+			shortYArray = [xPosition]
+			ppgplot.pgsci(2)
+			ppgplot.pgpanl(1, panel + 1)
+			ppgplot.pgpt(shortXArray, shortYArray, 1)
+			ppgplot.pgsci(3)
+			shortYArray = [yPosition]
+			ppgplot.pgpt(shortXArray, shortYArray, 1)
 			
 		if arg.sleep!=0:
 			time.sleep(arg.sleep)
