@@ -103,7 +103,7 @@ if __name__ == "__main__":
 	referenceApertures = ultraspecClasses.referenceApertures()
 	referenceApertures.initFromSourceList(sourceList)
 	debug.write("Number of reference apertures we are going to use is %d."%len(referenceApertures.sources), 2)
-	numXYPanels = len(referenceApertures.sources)
+	
 	
 	
 	runInfo = ultraspecClasses.runInfo(arg.runname)
@@ -181,18 +181,19 @@ if __name__ == "__main__":
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
 	
-	"""lightcurveView = ppgplot.pgopen('/xs')
-	ppgplot.pgenv(startFrame, startFrame + frameRange, 0, 100, 0, 0)
-	ppgplot.pgask(False)"""
-	
+	xyPositionPlot = {}
 	xyPositionView = ppgplot.pgopen('/xs')
+	xyPositionPlot['pgplotHandle'] = xyPositionView
+	xyPositionPlot['yLimit'] = 1.0
+	xyPositionPlot['numXYPanels'] = len(referenceApertures.sources)
 	ppgplot.pgpap(6.18, 1.618)
-	ppgplot.pgsubp(1, numXYPanels)
+	ppgplot.pgsubp(1, xyPositionPlot['numXYPanels'])
 	ppgplot.pgsci(5)
-	for panel in range(numXYPanels):
+	for panel in range(xyPositionPlot['numXYPanels']):
 		currentSize = ppgplot.pgqch()
 		ppgplot.pgsch(1)
-		ppgplot.pgenv(startFrame, startFrame + frameRange, -5, 5, 0, -2)
+		yLimit = xyPositionPlot['yLimit']
+		ppgplot.pgenv(startFrame, startFrame + frameRange, -yLimit, yLimit, 0, -2)
 		ppgplot.pgbox('A', 0.0, 0, 'BCG', 0.0, 0)
 		ppgplot.pglab("", "%d"%panel, "")
 		ppgplot.pgsch(currentSize)
@@ -384,29 +385,6 @@ if __name__ == "__main__":
 			yMax = numpy.max(yValues)
 			shortXArray = [trueFrameNumber]
 			shortYArray = [final_sum]
-			
-			"""ppgplot.pgslct(lightcurveView)
-			if yMax > yAxisMax:
-				yAxisMax = yMax * 1.1
-				ppgplot.pgenv(startFrame, startFrame + frameRange, yMin, yAxisMax, 0, 0)
-				ppgplot.pgpt(xValues, yValues, 1)
-				
-			ppgplot.pgsci(plotColour[index])	
-			ppgplot.pgpt(shortXArray, shortYArray, 1)
-		
-			"""
-	
-			"""ppgplot.pgsci(2)
-			for index, s in enumerate(sourceList.getSources()):
-				if index>5: break
-				center = s.latestPosition
-				window = allWindows[s.windowIndex]
-				xll = window.xll/window.xbin - xmin
-				yll = window.yll/window.ybin - ymin
-				xcen= center[0] + xll
-				ycen= center[1] + yll
-				#print xll, yll, center, xcen, ycen
-				ppgplot.pgcirc(xcen, ycen, 5)"""
 		
 		if arg.preview:
 			ppgplot.pgebuf()
@@ -414,6 +392,31 @@ if __name__ == "__main__":
 		ppgplot.pgslct(xyPositionView)
 		for panel, aperture in enumerate(referenceApertures.getSources()):
 			xPosition, yPosition = numpy.subtract(aperture.latestPosition, aperture.position)
+			# Check if we need to re-scale the vertical axis
+			yLimit = xyPositionPlot['yLimit']
+			if abs(xPosition)>yLimit or abs(yPosition)>yLimit:
+				yLimit*=1.2
+				xyPositionPlot['yLimit'] = yLimit
+				ppgplot.pgsubp(1, xyPositionPlot['numXYPanels'])
+				ppgplot.pgsci(5)
+				ppgplot.pgeras()
+				for p in range(xyPositionPlot['numXYPanels']):
+					ppgplot.pgenv(startFrame, startFrame + frameRange, -yLimit, yLimit, 0, -2)
+					ppgplot.pgbox('A', 0.0, 0, 'BCG', 0.0, 0)
+					ppgplot.pglab("", "%d"%p, "")
+					ppgplot.pgsch(currentSize)
+					
+				for p, a in enumerate(referenceApertures.getSources()):
+					xValues = [log['frameNumber'] for log in a.positionLog]
+					yValues = [log['position'][0] - a.position[0] for log in a.positionLog]
+					ppgplot.pgsci(2)
+					ppgplot.pgpanl(1, p + 1)
+					ppgplot.pgpt(xValues, yValues, 1)
+					yValues = [log['position'][1] - a.position[1] for log in a.positionLog]
+					ppgplot.pgsci(3)
+					ppgplot.pgpanl(1, p + 1)
+					ppgplot.pgpt(xValues, yValues, 1)
+					
 			shortXArray = [trueFrameNumber]
 			shortYArray = [xPosition]
 			ppgplot.pgsci(2)
@@ -431,11 +434,13 @@ if __name__ == "__main__":
 	if arg.preview:
 		ppgplot.pgslct(bitmapView)
 		ppgplot.pgclos()
-	ppgplot.pgslct(lightcurveView)
+	ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
 	ppgplot.pgclos()
 	
+	# Fit polynomials to the positions of the reference apertures
 	
-	# Find the reference aperture with most coverage
+	
+	# Sort the apertures by coverage
 	referenceApertures.calculateFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
 	referenceApertures.sortByCoverage()
 	maxCoverage = referenceApertures.getSources()[0].coverage
