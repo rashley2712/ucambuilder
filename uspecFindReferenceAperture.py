@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import sys
-try: 
+"""try: 
 	sys.path.remove('/home/astro/phsgan/Python64/lib/python/site-packages/astropy-0.3.2-py2.6-linux-x86_64.egg')
 except (ValueError):
 	print "No need to fix sys.path"
+"""
 import os
 import ultracamutils
 import matplotlib.pyplot
@@ -35,10 +36,18 @@ from photutils import CircularAperture
 from photutils import CircularAnnulus
 import photutils
 import ppgplot
+import scipy.optimize
 
 def shift_func(output_coords, xoffset, yoffset):
 	return (output_coords[0] - yoffset, output_coords[1] - xoffset)
 
+def gaussian(x, a, b, c, d):
+	return a * numpy.exp(- (x - b)**2 / (2 * c**2)) + d
+	
+def shifting_gaussian(x, b):
+	global a, c, d
+	return a * numpy.exp(- (x - b)**2 / (2 * c**2)) + d
+	
 
 def determineFullFrameSize(windows):
 	leftestPixel = 1057
@@ -58,18 +67,20 @@ if __name__ == "__main__":
 	
 	parser = argparse.ArgumentParser(description='Performs aperture photometry for Ultraspec runs. [dd-mm-yyyy/runxxx.dat]')
 	parser.add_argument('runname', type=str, help='Ultraspec run name  [eg 2013-07-21/run010]')
-	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib')
-	parser.add_argument('-s', '--stack', action='store_true', help='Stack the images in the preview window')
+	parser.add_argument('-p', '--preview', action='store_true', help='Show image previews with Matplotlib.')
+	parser.add_argument('-s', '--stack', action='store_true', help='Stack the images in the preview window.')
 	parser.add_argument('--noshift', action='store_true', help='Don''t apply a linear shift to the stacked images to correct for drift.')
-	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf')
-	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only')
-	parser.add_argument('--startframe', default=1, type=int, help='Start frame. \'1\' is the default')
-	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run')
-	parser.add_argument('-t', '--sleep', default=0, type=int, help='Sleep time (in seconds) between frames. \'0\' is the default')
-	parser.add_argument('--xyls', action='store_true', help='Write an XYLS (FITS) file output catalog that can be used as input to Astronomy.net')
+	parser.add_argument('-c', '--configfile', default='ucambuilder.conf', help='The config file, usually ucambuilder.conf.')
+	parser.add_argument('-d', '--debuglevel', type=int, help='Debug level: 3 - verbose, 2 - normal, 1 - warnings only.')
+	parser.add_argument('--startframe', default=1, type=int, help='Start frame. \'1\' is the default.')
+	parser.add_argument('-n', '--numframes', type=int, help='Number of frames. No parameter means all frames, or from startframe to the end of the run.')
+	parser.add_argument('-t', '--sleep', default=0, type=float, help='Sleep time (in seconds) between frames. \'0\' is the default.')
+	parser.add_argument('-w', '--watch', type=int, help='Watch an aperture... specify the number.')
+	parser.add_argument('--xyls', action='store_true', help='Write an XYLS (FITS) file output catalog that can be used as input to Astronomy.net.')
 	parser.add_argument('--usefirstframe', action='store_true', help='Use the first frame of the run. Usually the first frame will be discarded.')
 	parser.add_argument('-i', '--keyimages', action='store_true', help='Show some key images during the processing of this run.')
 	parser.add_argument('--createconfig', action='store_true', help='Use this option to create a default configuration file.')
+	parser.add_argument('--apertures', type=int, help='Number of reference apertures to use. The default is defined in the configuration file.')
 	
 	arg = parser.parse_args()
 	
@@ -82,6 +93,9 @@ if __name__ == "__main__":
 	innerSkyRadius = float(config.INNER_SKY)
 	outerSkyRadius = float(config.OUTER_SKY)
 	apertureRadius = float(config.APERTURE_RADIUS)
+	polynomialDegree = int(config.POLY_DEGREE)
+	numReferenceApertures = int(config.REF_APERTURES)
+	if arg.apertures!=None: numReferenceApertures = arg.apertures
 	applyShift = True
 	if (arg.noshift):
 		applyShift = False
@@ -101,10 +115,10 @@ if __name__ == "__main__":
 	else:
 		debug.write("Loaded %d sources from the CSV file."%sourceList.getNumSources(), 2)
 	referenceApertures = ultraspecClasses.referenceApertures()
-	referenceApertures.initFromSourceList(sourceList)
+	referenceApertures.initFromSourceList(sourceList, max=numReferenceApertures)
 	debug.write("Number of reference apertures we are going to use is %d."%len(referenceApertures.sources), 2)
 	
-	
+	margins = 10
 	
 	runInfo = ultraspecClasses.runInfo(arg.runname)
 	found = runInfo.loadFromJSON(config.RUNINFO)
@@ -181,9 +195,10 @@ if __name__ == "__main__":
 	fullFramexsize = xmax - xmin
 	fullFrameysize = ymax - ymin
 	
+	
+	""" Set up the PGPLOT windows """
 	xyPositionPlot = {}
-	xyPositionView = ppgplot.pgopen('/xs')
-	xyPositionPlot['pgplotHandle'] = xyPositionView
+	xyPositionPlot['pgplotHandle'] = ppgplot.pgopen('/xs')
 	xyPositionPlot['yLimit'] = 1.0
 	xyPositionPlot['numXYPanels'] = len(referenceApertures.sources)
 	ppgplot.pgpap(6.18, 1.618)
@@ -203,10 +218,28 @@ if __name__ == "__main__":
 	
 	
 	if (arg.preview):		
-		bitmapView = ppgplot.pgopen('/xs')
+		bitmapView = {}
+		bitmapView['pgplotHandle'] = ppgplot.pgopen('/xs')
+		ppgplot.pgpap(8, 1)
+		
 		ppgplot.pgenv(0.,fullFramexsize,0.,fullFrameysize, 1, 0)
 		pgPlotTransform = [0, 1, 0, 0, 0, 1]
 		ppgplot.pgsfs(2)
+	
+	if (arg.watch!=None) and (arg.watch<numReferenceApertures):
+		watch = arg.watch
+		watchView = {}
+		watchView['pgplotHandle'] = ppgplot.pgopen('/xs')
+		ppgplot.pgpap(10, 1)
+		ppgplot.pgsvp(0.1, 0.7, 0.3, 0.9)
+		ppgplot.pgswin(-margins, margins, -margins, margins)
+		# ppgplot.pgenv(-margins, margins, -margins, margins, 1, 0)
+		# ppgplot.pgenv(-margins, margins, 0, 10, 0, 0)
+		watchView['pgPlotTransform'] = [-11, 1, 0, -11, 0, 1]
+	else:
+		watch=-1
+	
+	""" End of PGPLOT set up """
 	
 					
 	xValues = []
@@ -237,7 +270,7 @@ if __name__ == "__main__":
 		
 		
 		if arg.preview:
-			ppgplot.pgslct(bitmapView) 
+			ppgplot.pgslct(bitmapView['pgplotHandle']) 
 			ppgplot.pgbbuf()
 			fullFrame = numpy.zeros((fullFrameysize, fullFramexsize))	
 			for w in allWindows:
@@ -251,10 +284,8 @@ if __name__ == "__main__":
 				ysize = w.ny
 				fullFrame[yll:yll+ysize, xll:xll+xsize] = fullFrame[yll:yll+ysize, xll:xll+xsize] + boostedImage		
 			
-			dimensions = numpy.shape(fullFrame)
-			rows = dimensions[0]
-			cols = dimensions[1]
-
+			rows, cols  = numpy.shape(fullFrame)
+			
 			# Draw the grayscale bitmap
 			ppgplot.pggray(fullFrame, 0, cols-1 , 0, rows-1 , 0, 255, pgPlotTransform)
 	
@@ -267,8 +298,7 @@ if __name__ == "__main__":
 			# ppgplot.pgslct(bitmapView)
 			ppgplot.pgsci(2)
 
-		margins = 10			
-		plotColour = [1, 2, 3, 4, 5, 6]
+				
 		for index, s in enumerate(referenceApertures.getSources()):
 			window = allWindows[s.windowIndex]
 			center = s.latestPosition
@@ -289,26 +319,19 @@ if __name__ == "__main__":
 			
 			xPeak = numpy.argmax(xCollapsed)
 			yPeak = numpy.argmax(yCollapsed)
-			#print "xPeak, yPeak:", xPeak, yPeak
-			
+			if (yPeak==len(yCollapsed)-1) or (yPeak == 0) \
+				or (xPeak==len(xCollapsed)-1) or (xPeak == 0):
+				print "Peak too close to the edge [%d, %d] ... skipping this aperture [%d] for this frame [%d]."%(xPeak,yPeak, index, trueFrameNumber)
+				continue
+
+			# Fit quadratic polynomials to the collapsed profiles in the X-Y axis
 			xMat = [ [ (xPeak-1)**2, (xPeak-1) , 1 ] , \
 			         [ (xPeak)**2,   (xPeak)   , 1 ] , \
 			         [ (xPeak+1)**2, (xPeak+1) , 1 ] ]
 			yMat = [ xCollapsed[xPeak-1], xCollapsed[xPeak], xCollapsed[xPeak+1] ]
 			(a, b, c) = numpy.linalg.solve(xMat, yMat)
+			xPoly = (a, b, c)
 			newxPeak = -1.0 * b / (2.0 * a)
-			xStartPlot = newxPeak - 5
-			xEndPlot = newxPeak + 5
-			xRange = xEndPlot - xStartPlot
-			xpPoints = []
-			ypPoints = []
-			numPoints = 300
-			xScale = xRange/numPoints
-			for point in range(numPoints):
-				xp = point*(xScale) + xStartPlot
-				yp = a*xp*xp + b*xp + c
-				xpPoints.append(xp)
-				ypPoints.append(yp)
 
 			xMat = [ [ (yPeak-1)**2, (yPeak-1) , 1 ] , \
 			         [ (yPeak)**2,   (yPeak)   , 1 ] , \
@@ -316,39 +339,63 @@ if __name__ == "__main__":
 			yMat = [ yCollapsed[yPeak-1], yCollapsed[yPeak], yCollapsed[yPeak+1] ]
 			(a, b, c) = numpy.linalg.solve(xMat, yMat)
 			newyPeak = -1.0 * b / (2.0 * a)
-			xStartPlot = newyPeak - 5
-			xEndPlot = newyPeak + 5
-			xRange = xEndPlot - xStartPlot
-			xyPoints = []
-			yyPoints = []
-			numPoints = 300
-			xScale = xRange/numPoints
-			for point in range(numPoints):
-				xp = point*(xScale) + xStartPlot
-				yp = a*xp*xp + b*xp + c
-				xyPoints.append(xp)
-				yyPoints.append(yp)
 
-			xcen = newxPeak
+			# Fit a Gaussian with pre-defined FWHM to the collapsed profiles.
+			fwhm = 3.0
+			c = fwhm / 2.355
+			b = 0.
+			baseLevel = numpy.median(xCollapsed)
+			a = numpy.max(xCollapsed) - baseLevel
+			d = baseLevel
+			numGaussianPoints = len(xCollapsed)
+			xGaussian = [float(x) * 2*margins/numGaussianPoints - margins for x in range(numGaussianPoints)]
+			result, covariance = scipy.optimize.curve_fit(shifting_gaussian, xGaussian, xCollapsed, b)
+			bestOffset = result[0]
+			bestOffsetError = numpy.sqrt(numpy.diag(covariance))[0]
+			print bestOffset, bestOffsetError, result, covariance
+			yGaussian = [gaussian(x, a, bestOffset, c, d) for x in xGaussian]
+			
+			xcen = bestOffset + margins
 			ycen = newyPeak
 			#print "Centroid method: (%f, %f)   vs   Quadratic fit: (%f, %f)"%(xcen, ycen, newxPeak, newyPeak) 
-			"""
-			centroidView = ppgplot.pgopen('/xs')
-			ppgplot.pgenv(0, len(xCollapsed), 0, max(xCollapsed), 0, 0)
-			pgPlotTransform = [0, 1, 0, 0, 0, 1]
-			ppgplot.pglab("Pixels", "Counts position", "Source number: %d"%s.id)
-			ppgplot.pgsci(2)
-			ppgplot.pgpt(range(len(xCollapsed)), xCollapsed, 3)
-			ppgplot.pgline(xpPoints, ypPoints)
-			ppgplot.pgsci(3)
-			ppgplot.pgpt(range(len(xCollapsed)), yCollapsed, 2)
-			ppgplot.pgline(xyPoints, yyPoints)
-			ppgplot.pgclos()
-			time.sleep(2)
-			"""
+			if index==watch:
+				ppgplot.pgslct(watchView['pgplotHandle'])
+				ppgplot.pgbbuf()
+				ppgplot.pgeras()
+				ppgplot.pgsvp(0.1, 0.7, 0.3, 0.9)
+				ppgplot.pgswin(-margins, margins, -margins, margins)
+				zRows, zCols = numpy.shape(zoomImageData)
+				preview = ultracamutils.percentiles(zoomImageData, 20, 99)
+				ppgplot.pggray(preview, 0, zCols-1, 0, zRows-1, 0, 255, watchView['pgPlotTransform'])
+			
+				ppgplot.pgsvp(0.1, 0.7, 0.1, 0.2)
+				yMax = numpy.max(xCollapsed) * 1.1
+				yMin = numpy.min(xCollapsed) *0.9
+				ppgplot.pgswin(-margins, margins, yMin, yMax)
+				ppgplot.pgbox('ABI', 1.0, 10, 'ABI', 0.0, 0)
+				xPoints = [x - margins for x in range(len(xCollapsed))]
+				ppgplot.pgsci(2)
+				ppgplot.pgbin(xPoints, xCollapsed, True)
+				numPolyPoints = 50
+				xFit = [float(i) * len(xCollapsed)/numPolyPoints for i in range(numPolyPoints)]
+				yFit = [xPoly[0]*x*x + xPoly[1]*x + xPoly[2] for x in xFit]
+				ppgplot.pgsci(3)
+				ppgplot.pgline([x - margins for x in xFit], yFit)
+				ppgplot.pgsls(2)
+				ppgplot.pgline([newxPeak-margins, newxPeak-margins], [yMin, yMax]) 
+				ppgplot.pgsci(4)
+				ppgplot.pgline([bestOffset, bestOffset], [yMin, yMax])
+				ppgplot.pgsls(1)
+				ppgplot.pgline(xGaussian, yGaussian)
+				ppgplot.pgsci(1)
+				ppgplot.pgebuf()
+			
 			xcen+= xcenterOffset
 			ycen+= ycenterOffset
-			s.setLatestPosition(trueFrameNumber, (xcen, ycen))
+			
+			xError = bestOffsetError
+			yError = 0
+			s.setLatestPosition(trueFrameNumber, (xcen, ycen), errors = (xError, yError))
 			apertures = CircularAperture((xcen, ycen), r=apertureRadius)
 			annulus_apertures = CircularAnnulus((xcen, ycen), r_in=innerSkyRadius, r_out=outerSkyRadius)
 			
@@ -356,7 +403,7 @@ if __name__ == "__main__":
 			xll = window.xll/window.xbin - xmin
 			yll = window.yll/window.ybin - ymin
 			if arg.preview:
-				ppgplot.pgslct(bitmapView)
+				ppgplot.pgslct(bitmapView['pgplotHandle'])
 				plotx= xcen + xll
 				ploty= ycen + yll
 				#print xll, yll, center, xcen, ycen
@@ -364,32 +411,10 @@ if __name__ == "__main__":
 				ppgplot.pgcirc(plotx, ploty, innerSkyRadius)
 				ppgplot.pgcirc(plotx, ploty, outerSkyRadius)
 				ppgplot.pgptxt(plotx-10, ploty-10, 0, 0, str(index)) 
-				
-			
-			data = window.data
-			
-			innerFluxes = aperture_photometry(data, apertures)
-			outerFluxes = aperture_photometry(data, annulus_apertures)
-			
-			innerFlux = innerFluxes[0]['aperture_sum']
-			outerFlux = outerFluxes[0]['aperture_sum']
-			
-			bkg_mean = outerFlux / annulus_apertures.area()
-			bkg_sum = bkg_mean * apertures.area()
-			final_sum = innerFlux - bkg_sum
-			s.addFluxMeasurement(trueFrameNumber, final_sum)
-			
-			xValues.append(trueFrameNumber)
-			yValues.append(final_sum)
-			yMin = 0
-			yMax = numpy.max(yValues)
-			shortXArray = [trueFrameNumber]
-			shortYArray = [final_sum]
+				ppgplot.pgebuf()
+	
 		
-		if arg.preview:
-			ppgplot.pgebuf()
-		
-		ppgplot.pgslct(xyPositionView)
+		ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
 		for panel, aperture in enumerate(referenceApertures.getSources()):
 			xPosition, yPosition = numpy.subtract(aperture.latestPosition, aperture.position)
 			# Check if we need to re-scale the vertical axis
@@ -401,21 +426,25 @@ if __name__ == "__main__":
 				ppgplot.pgsci(5)
 				ppgplot.pgeras()
 				for p in range(xyPositionPlot['numXYPanels']):
-					ppgplot.pgenv(startFrame, startFrame + frameRange, -yLimit, yLimit, 0, -2)
-					ppgplot.pgbox('A', 0.0, 0, 'BCG', 0.0, 0)
+					ppgplot.pgenv(startFrame, startFrame + frameRange, -yLimit, yLimit, 0, 0)
+					ppgplot.pgbox('A', 1.0, 10, 'BCG', 0.0, 0)
 					ppgplot.pglab("", "%d"%p, "")
 					ppgplot.pgsch(currentSize)
 					
 				for p, a in enumerate(referenceApertures.getSources()):
 					xValues = [log['frameNumber'] for log in a.positionLog]
 					yValues = [log['position'][0] - a.position[0] for log in a.positionLog]
+					yErrors = [log['positionError'][0] for log in a.positionLog] 
 					ppgplot.pgsci(2)
 					ppgplot.pgpanl(1, p + 1)
 					ppgplot.pgpt(xValues, yValues, 1)
+					print yErrors
+					ppgplot.pgerry(xValues, yValues + yErrors, yValues + yErrors, 0)
 					yValues = [log['position'][1] - a.position[1] for log in a.positionLog]
 					ppgplot.pgsci(3)
 					ppgplot.pgpanl(1, p + 1)
 					ppgplot.pgpt(xValues, yValues, 1)
+				
 					
 			shortXArray = [trueFrameNumber]
 			shortYArray = [xPosition]
@@ -432,25 +461,49 @@ if __name__ == "__main__":
 	sys.stdout.flush()
 	
 	if arg.preview:
-		ppgplot.pgslct(bitmapView)
+		ppgplot.pgslct(bitmapView['pgplotHandle'])
 		ppgplot.pgclos()
-	ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
-	ppgplot.pgclos()
-	
-	# Fit polynomials to the positions of the reference apertures
+		
+	if watch!=-1:
+		ppgplot.pgslct(watchView['pgplotHandle'])
+		ppgplot.pgclos()
 	
 	
 	# Sort the apertures by coverage
 	referenceApertures.calculateFrameCoverage(frameRange-1)   # The '-1' is because we don't get photometry from the first frame
 	referenceApertures.sortByCoverage()
-	maxCoverage = referenceApertures.getSources()[0].coverage
-	print "Max coverage:", maxCoverage
-	referenceApertures.limitCoverage(maxCoverage)
+	minCoverage = 80.0
+	referenceApertures.limitCoverage(minCoverage)
 	referenceApertures.sortByFlux()
-	referenceAperture = referenceApertures.getSources()[0]
-	print "Our reference aperture is:", referenceAperture
+	
+	# Fit polynomials to the positions of the reference apertures
+	for p, referenceAperture in enumerate(referenceApertures.getSources()):
+		xValues = [log['frameNumber'] for log in referenceAperture.positionLog]
+		yValues = [log['position'][0] - referenceAperture.position[0] for log in referenceAperture.positionLog]
+		polynomial = numpy.polyfit(xValues, yValues, polynomialDegree)
+		# Draw the polynomial
+		ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
+		ppgplot.pgsci(2)
+		ppgplot.pgpanl(1, p + 1)
+		yValues = numpy.polyval(polynomial, xValues)
+		ppgplot.pgpt(xValues, yValues, 1)
+	
+		yValues = [log['position'][1] - referenceAperture.position[1] for log in referenceAperture.positionLog]
+		polynomial = numpy.polyfit(xValues, yValues, polynomialDegree)
+		# Draw the polynomial
+		ppgplot.pgsci(3)
+		ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
+		ppgplot.pgpanl(1, p + 1)
+		yValues = numpy.polyval(polynomial, xValues)
+		ppgplot.pgpt(xValues, yValues, 1)
+	
+	
+	ppgplot.pgslct(xyPositionPlot['pgplotHandle'])
+	ppgplot.pgclos()
+	
 	
 	# Write the reference aperture data as a CSV file
+	referenceAperture = referenceApertures.getSources()[0]
 	outputFilename = ultracamutils.addPaths(config.WORKINGDIR, arg.runname) + "_reference_aperture.csv"
 	outputFile = open(outputFilename, 'w')
 	
@@ -469,36 +522,6 @@ if __name__ == "__main__":
 		outputFile.write(lineString)
 	outputFile.close()
 	
-	# Plot the x-y movement of the reference aperture...
-	frameValues = []
-	xValues = []
-	yValues = []
-	for d in apertureData:
-		frameValues.append(d[0])
-		xValues.append(d[2])
-		yValues.append(d[3])
-	xStart = xValues[0]
-	xValues = [ x - xStart for x in xValues]
-	yStart = yValues[0]
-	yValues = [ y - yStart for y in yValues]
-	xrange = numpy.max(numpy.abs(xValues))
-	yrange = numpy.max(numpy.abs(yValues))
-	if xrange > yrange:
-		plotRange = xrange
-	else:
-		plotRange = yrange
-		
-	print "Plot range", plotRange
-	
-	positionGraph = ppgplot.pgopen('/xs')
-	ppgplot.pgenv(numpy.min(frameValues), numpy.max(frameValues), -1.1*plotRange, 1.1*plotRange,0, 0)
-	pgPlotTransform = [0, 1, 0, 0, 0, 1]
-	ppgplot.pglab("Frame number", "Pixel position", "Source movement in pixels")
-	ppgplot.pgsfs(2)
-	ppgplot.pgpt(frameValues, xValues, 2)
-	ppgplot.pgpt(frameValues, yValues, 3)
-				
-	ppgplot.pgclos()
 	sys.exit()
 	
 	

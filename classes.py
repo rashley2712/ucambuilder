@@ -248,6 +248,8 @@ class configObject:
 		self.APERTURE_RADIUS = 5.0
 		self.INNER_SKY = 10.0
 		self.OUTER_SKY = 15.0
+		self.POLY_DEGREE = 5
+		self.REF_APERTURES = 4
 
     def __setitem__(self, item, value):
 		setattr(self, item, value)

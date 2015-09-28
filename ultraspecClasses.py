@@ -110,11 +110,11 @@ class referenceApertures:
 	def getSources(self):
 		return self.sources
 		
-	def initFromSourceList(self, sourceList):
+	def initFromSourceList(self, sourceList, max=4):
 		self.sources = []
 		sourceList.sortByFlux()
 		topPercent = 40.
-		maxApertures = 4
+		maxApertures = max
 		
 		for index, s in enumerate(sourceList.sources):
 			if index>=maxApertures: break
@@ -123,7 +123,7 @@ class referenceApertures:
 		
 	def calculateFrameCoverage(self, nFrames):
 		for s in self.sources:
-			numFrames = len(s.fluxMeasurements)
+			numFrames = len(s.positionLog)
 			coverage = float(numFrames) / float(nFrames) * 100.
 			s.coverage = coverage
 			print s, coverage
@@ -137,10 +137,10 @@ class referenceApertures:
 		self.sources = sortedSources
 
 		
-	def limitCoverage(self, maxCoverage):
+	def limitCoverage(self, minCoverage):
 		newSources = []
 		for s in self.sources:
-			if s.coverage==maxCoverage: newSources.append(s)
+			if s.coverage>=minCoverage: newSources.append(s)
 		self.sources = newSources
 
 class source:
@@ -184,11 +184,12 @@ class source:
 			dataPoints.append(data)
 		return dataPoints
 		
-	def setLatestPosition(self, frameNumber, newPosition):
+	def setLatestPosition(self, frameNumber, newPosition, errors = (0, 0)):
 		self.latestPosition = newPosition
 		logEntry = {}
 		logEntry['frameNumber'] = frameNumber
 		logEntry['position'] = newPosition
+		logEntry['positionError'] = errors
 		self.positionLog.append(logEntry)
 		
 	def addFluxMeasurement(self, frameNumber, flux):
